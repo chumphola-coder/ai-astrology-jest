@@ -455,6 +455,7 @@
         let currentResult = null;
         let profileUnsubscribe = null;
         
+        // Cache สำหรับเก็บรูปภาพ base64 เพื่อลดการอัปโหลดซ้ำ
         let cachedLeftHand = null;
         let cachedRightHand = null;
 
@@ -500,11 +501,14 @@
             }
         };
 
+        // Populate ฟอร์มที่เคยกรอกล่าสุด
         const populateSavedForm = (email) => {
             try {
                 const savedStr = localStorage.getItem('astro_form_' + email);
                 if (!savedStr) return;
+                
                 const saved = JSON.parse(savedStr);
+                
                 if (saved.birthDay) document.getElementById('birthDay').value = saved.birthDay;
                 if (saved.birthMonth) document.getElementById('birthMonth').value = saved.birthMonth;
                 if (saved.birthYear) document.getElementById('birthYear').value = saved.birthYear;
@@ -512,10 +516,14 @@
                 if (saved.birthCountry) document.getElementById('birthCountry').value = saved.birthCountry;
                 if (saved.birthPlace) document.getElementById('birthPlace').value = saved.birthPlace;
                 if (saved.birthLocationMap) document.getElementById('birthLocationMap').value = saved.birthLocationMap;
+                
+                // Clear custom question (เว้นว่างเสมอ)
                 document.getElementById('customQuestion').value = "";
+
                 if (saved.usePalmistry) {
                     document.getElementById('usePalmistryToggle').checked = true;
                     document.getElementById('palmistryUploads').classList.remove('hidden');
+                    
                     if (saved.leftHand) {
                         cachedLeftHand = saved.leftHand;
                         document.getElementById('leftHandStatus').classList.remove('hidden');
@@ -532,21 +540,26 @@
             }
         };
 
+        // โหลดข้อมูลโปรไฟล์จาก Email เป็นหลัก
         const listenToProfile = (emailKey) => {
             if (profileUnsubscribe) profileUnsubscribe();
+
             const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', emailKey);
             profileUnsubscribe = onSnapshot(profileRef, (docSnap) => {
                 const activeSession = sessionStorage.getItem('activeSession');
+                
                 if (!activeSession || activeSession !== emailKey) {
                     document.getElementById('authOverlay').classList.remove('hidden');
                     document.getElementById('mainAppContent').classList.add('hidden');
                     document.getElementById('pendingApprovalScreen').classList.add('hidden');
                     return;
                 }
+
                 if (docSnap.exists()) {
                     sessionProfile = docSnap.data();
                     document.getElementById('displayNickname').innerText = sessionProfile.nickname;
                     document.getElementById('authOverlay').classList.add('hidden');
+                    
                     if (sessionProfile.status === 'pending') {
                         document.getElementById('mainAppContent').classList.add('hidden');
                         document.getElementById('pendingApprovalScreen').classList.remove('hidden');
@@ -586,28 +599,41 @@
             if (!currentUser) return;
             const nickname = document.getElementById('loginNickname').value.trim();
             const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+
             if (!email.endsWith('@gmail.com')) {
                 showToast("ระบบอนุญาตเฉพาะบัญชี @gmail.com เท่านั้น", true);
                 return;
             }
+
             const btn = document.getElementById('authSubmitBtn');
             btn.innerText = "กำลังดำเนินการ...";
             btn.disabled = true;
+
             try {
                 const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', email);
                 const docSnap = await getDoc(profileRef);
+                
                 if (docSnap.exists()) {
                     const existingData = docSnap.data();
+                    
                     if (existingData.nickname !== nickname) {
                         showToast("ชื่อเล่นไม่ถูกต้อง (ไม่ตรงกับอีเมลนี้) โปรดลองอีกครั้ง", true);
                         btn.innerText = "เข้าสู่ระบบ / ลงทะเบียน";
                         btn.disabled = false;
                         return;
                     }
+
                     showToast("เข้าสู่ระบบสำเร็จ!");
                     sessionStorage.setItem('activeSession', email);
                     listenToProfile(email); 
                 } else {
+                    if (!nickname) {
+                        showToast("คุณเป็นผู้ใช้ใหม่ กรุณาระบุชื่อเล่นเพื่อลงทะเบียนด้วยครับ", true);
+                        btn.innerText = "เข้าสู่ระบบ / ลงทะเบียน";
+                        btn.disabled = false;
+                        return;
+                    }
+
                     await setDoc(profileRef, { 
                         uid: currentUser.uid,
                         nickname, 
@@ -618,15 +644,19 @@
                         lastUsedDate: '',
                         createdAt: Date.now()
                     });
+                    
                     const adminParams = {
                         to_email: 'chumphola@gmail.com',
                         user_name: nickname,
                         user_email: email,
-                        message: `มีผู้ใช้ใหม่ชื่อ ${nickname} (อีเมล: ${email}) ต้องการขออนุญาตเข้าใช้งานระบบ`
+                        message: `มีผู้ใช้ใหม่ชื่อ ${nickname} (อีเมล: ${email}) ต้องการขออนุญาตเข้าใช้งานระบบ ดูรายละเอียดได้ในหน้า Admin Panel`
                     };
+                    
                     emailjs.send("service_34z9xx8", "template_smi5evt", adminParams)
-                        .then(() => showToast("ส่งคำขอสิทธิ์การใช้งานไปยังแอดมินสำเร็จ!"))
-                        .catch(err => console.error("Email error: ", err));
+                        .then(() => {
+                            showToast("ส่งคำขอสิทธิ์การใช้งานไปยังแอดมินสำเร็จ!");
+                        }).catch(err => console.error("Email error: ", err));
+
                     sessionStorage.setItem('activeSession', email);
                     listenToProfile(email);
                 }
@@ -639,9 +669,47 @@
             }
         });
 
+        // ออกจากระบบ
         document.getElementById('logoutBtn').addEventListener('click', () => {
             sessionStorage.removeItem('activeSession');
             window.location.reload(); 
+        });
+
+        // --- Admin Controls ---
+        document.getElementById('showAdminLoginBtn').addEventListener('click', () => {
+            document.getElementById('adminLoginOverlay').classList.remove('hidden');
+        });
+        document.getElementById('closeAdminLoginBtn').addEventListener('click', () => {
+            document.getElementById('adminLoginOverlay').classList.add('hidden');
+        });
+        document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const u = document.getElementById('adminUser').value;
+            const p = document.getElementById('adminPass').value;
+            if (u === 'admin' && p === 'Hongfa401') {
+                document.getElementById('adminLoginOverlay').classList.add('hidden');
+                document.getElementById('authOverlay').classList.add('hidden');
+                document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                document.getElementById('mainAppContent').classList.add('hidden');
+                document.getElementById('adminDashboard').classList.remove('hidden');
+                initAdminDashboard();
+                showToast("เข้าสู่ระบบแอดมินสำเร็จ");
+            } else {
+                showToast("Username หรือ Password ไม่ถูกต้อง", true);
+            }
+        });
+
+        document.getElementById('exitAdminBtn').addEventListener('click', () => {
+            document.getElementById('adminDashboard').classList.add('hidden');
+            if (unsubscribeAdmin) unsubscribeAdmin();
+            const activeSession = sessionStorage.getItem('activeSession');
+            if (sessionProfile && sessionProfile.status === 'approved' && activeSession) {
+                document.getElementById('mainAppContent').classList.remove('hidden');
+            } else if (sessionProfile && sessionProfile.status === 'pending' && activeSession) {
+                document.getElementById('pendingApprovalScreen').classList.remove('hidden');
+            } else {
+                document.getElementById('authOverlay').classList.remove('hidden');
+            }
         });
 
         const initAdminDashboard = () => {
@@ -653,12 +721,15 @@
                     const data = docSnap.data();
                     const tr = document.createElement('tr');
                     tr.className = "hover:bg-slate-800/30 transition-colors";
+                    
                     const statusBadge = data.status === 'approved' 
                         ? '<span class="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs">Approved</span>'
                         : '<span class="px-2 py-1 bg-amber-500/20 text-amber-400 rounded text-xs">Pending</span>';
+
                     const safeId = data.email.replace(/[@.]/g, '_');
                     const today = new Date().toDateString();
                     const dailyUsed = data.lastUsedDate === today ? (data.proUsed || 0) : 0;
+
                     tr.innerHTML = `
                         <td class="px-4 py-3">
                             <div class="font-bold text-white">${data.nickname}</div>
@@ -705,6 +776,20 @@
             }
         });
 
+        document.getElementById('leftHandImg').addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                cachedLeftHand = null;
+                document.getElementById('leftHandStatus').classList.add('hidden');
+            }
+        });
+
+        document.getElementById('rightHandImg').addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                cachedRightHand = null;
+                document.getElementById('rightHandStatus').classList.add('hidden');
+            }
+        });
+
         const fileToBase64 = (file) => new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -712,14 +797,20 @@
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800; 
+                    const MAX_WIDTH = 800; // ย่อขนาดเพื่อลดปริมาณ Base64 ลงเพื่อให้จัดเก็บใน Firestore ได้
                     let width = img.width;
                     let height = img.height;
-                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                    canvas.width = width; canvas.height = height;
+
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    resolve(dataUrl.split(',')[1]);
                 };
                 img.onerror = error => reject(error);
                 img.src = event.target.result;
@@ -727,18 +818,20 @@
             reader.onerror = error => reject(error);
         });
 
-        // --- Prediction API (ปรับปรุงระบบ Model Fallback และจัดการ Leaked Key) ---
+        // --- Prediction API (อัปเกรดระบบ Auto-Fallback ป้องกัน 404 และ 400) ---
         const callGemini = async (prompt, imagesB64 = [], usePro = true) => {
-            const systemApiKey = ""; 
-            let apiKey = systemApiKey; 
+            let apiKey = ""; 
             const githubGeminiApiKey = "AIzaSyCFibyy8DsXh2Pm-o__e1JMgJTQQVNhFfY"; 
             
-            if (!apiKey || apiKey === "") {
+            if (typeof __firebase_config === 'undefined') {
                 apiKey = githubGeminiApiKey;
+                if (!apiKey || apiKey === "ใส่_GEMINI_API_KEY_ของคุณที่นี่") {
+                    throw new Error("Missing_Gemini_Key");
+                }
             }
 
-            // จัดการรายชื่อโมเดลตามลำดับความเสถียร
-            const publicModels = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"];
+            // รายชื่อโมเดลที่จะให้ระบบทดลองเรียกใช้ตามลำดับ (หากตัวแรก 404 จะสลับไปตัวถัดไป)
+            const publicModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"];
             let currentModelIndex = 0;
             let useSchema = true; 
             
@@ -746,17 +839,22 @@
                 ? "คุณคือปรมาจารย์โหราศาสตร์ขั้นสูงสุด (Deep Research Mode) จงวิเคราะห์อย่างละเอียดลึกซึ้งที่สุด" 
                 : "คุณคือโหราจารย์ (Fast Mode) จงวิเคราะห์ข้อมูลสรุปแบบรวดเร็วและกระชับ";
 
-            const finalPrompt = `${qualityPrompt}\n\n${prompt}\n\n*ข้อสำคัญ: ตอบกลับเป็นรูปแบบ JSON โดยใช้คีย์: summary, personality, improvements, finance, love, health, karma, customAnswer, palmistryDetails และ periods (oneMonth, sixMonths, oneYear)*`;
+            // กำหนดโครงสร้างที่ต้องการใน Prompt ด้วย เพื่อป้องกันกรณีที่ต้องปิด Schema
+            const finalPrompt = `${qualityPrompt}\n\n${prompt}\n\n*ข้อสำคัญ: กรุณาตอบกลับเป็นรูปแบบ JSON ที่ถูกต้องเท่านั้น โดยใช้คีย์ต่อไปนี้: summary, personality, improvements, finance, love, health, karma, customAnswer, palmistryDetails (ถ้ามี) และ periods (ซึ่งภายใน periods ประกอบด้วย oneMonth, sixMonths, oneYear)*`;
+            
             const parts = [{ text: finalPrompt }];
             imagesB64.forEach(b64 => parts.push({ inlineData: { mimeType: "image/jpeg", data: b64 } }));
 
             let delay = 1000;
-            for (let i = 0; i < 6; i++) {
-                let modelName = (typeof __firebase_config !== 'undefined' && currentModelIndex === 0) 
-                    ? "gemini-2.5-flash-preview-09-2025" 
-                    : publicModels[Math.min(currentModelIndex, publicModels.length - 1)];
+            
+            for (let i = 0; i < 5; i++) {
+                let modelName = "gemini-2.5-flash-preview-09-2025"; 
+                if (typeof __firebase_config === 'undefined') {
+                    modelName = publicModels[Math.min(currentModelIndex, publicModels.length - 1)];
+                }
                 
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
                 let generationConfig = { responseMimeType: "application/json" };
                 if (useSchema) {
                     generationConfig.responseSchema = {
@@ -770,8 +868,21 @@
                             health: { type: "STRING" },
                             karma: { type: "STRING" },
                             customAnswer: { type: "STRING" },
-                            palmistryDetails: { type: "OBJECT", properties: { leftHand: { type: "STRING" }, rightHand: { type: "STRING" } } },
-                            periods: { type: "OBJECT", properties: { oneMonth: { type: "STRING" }, sixMonths: { type: "STRING" }, oneYear: { type: "STRING" } } }
+                            palmistryDetails: {
+                                type: "OBJECT",
+                                properties: {
+                                    leftHand: { type: "STRING" },
+                                    rightHand: { type: "STRING" }
+                                }
+                            },
+                            periods: {
+                                type: "OBJECT",
+                                properties: {
+                                    oneMonth: { type: "STRING" },
+                                    sixMonths: { type: "STRING" },
+                                    oneYear: { type: "STRING" }
+                                }
+                            }
                         }
                     };
                 }
@@ -784,42 +895,61 @@
                     });
 
                     if (!response.ok) {
-                        const errorData = await response.json();
-                        const errorMsg = errorData.error?.message || "";
+                        const errorText = await response.text();
+                        console.error(`Gemini API Error (${modelName}):`, response.status, errorText);
                         
-                        // หาก API Key ถูกระงับ (Leaked) แจ้งเตือนทันที
-                        if (response.status === 403 && errorMsg.toLowerCase().includes("leaked")) {
-                            throw new Error("KEY_LEAKED: API Key ของคุณถูกระงับเนื่องจากตรวจพบว่าหลุดสู่สาธารณะ โปรดสร้าง Key ใหม่ที่ Google AI Studio");
-                        }
-
-                        // หากหาโมเดลไม่เจอหรือถูกจำกัดสิทธิ์ ให้ลองโมเดลถัดไป
-                        if (response.status === 404 || response.status === 403 || response.status === 401) {
-                            currentModelIndex++;
-                            if (currentModelIndex >= publicModels.length) {
-                                throw new Error(`API Request Failed (HTTP ${response.status}): ${errorMsg}`);
+                        if (response.status === 404 || response.status === 403) {
+                            if (typeof __firebase_config === 'undefined') {
+                                currentModelIndex++;
+                                if (currentModelIndex >= publicModels.length) {
+                                    if (response.status === 403) {
+                                        throw new Error("HTTP 403: API Key ของคุณถูกจำกัดสิทธิ์ โปรดตรวจสอบการตั้งค่า API Restrictions ใน Google Cloud");
+                                    }
+                                    throw new Error("HTTP 404: ไม่พบโมเดล AI ที่รองรับใน API Key ของคุณ");
+                                }
+                                console.warn(`Model ${response.status} Error, switching to:`, publicModels[currentModelIndex]);
+                                i--; 
+                                continue;
                             }
+                        }
+                        
+                        if (response.status === 400 && useSchema) {
+                            console.warn("HTTP 400: Schema not supported, retrying without schema...");
+                            useSchema = false;
+                            i--; 
                             continue;
                         }
-                        
-                        if (response.status === 400 && useSchema) { useSchema = false; continue; }
-                        throw new Error(`API Error ${response.status}`);
+
+                        throw new Error(`API Request Failed (HTTP ${response.status})`);
                     }
                     
                     const data = await response.json();
-                    let text = data.candidates[0].content.parts[0].text.replace(/```json/gi, '').replace(/```/g, '').trim();
-                    return JSON.parse(text);
+                    let responseText = data.candidates[0].content.parts[0].text;
+                    responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+                    
+                    return JSON.parse(responseText);
+                    
                 } catch (err) {
-                    if (err.message.includes("KEY_LEAKED")) throw err;
-                    if (i === 5) throw err;
+                    if (err.message === "Missing_Gemini_Key" || err.message.includes("ไม่พบโมเดล") || err.message.includes("HTTP 403")) throw err; 
+                    
+                    if (err.name === "SyntaxError" && useSchema) {
+                         useSchema = false;
+                         i--;
+                         continue;
+                    }
+
+                    if (i === 4) throw err;
                     await new Promise(r => setTimeout(r, delay));
                     delay *= 2;
                 }
             }
         };
 
+        // ทำนายดวงชะตา
         document.getElementById('astroForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!sessionProfile || sessionProfile.status !== 'approved') return;
+
             const today = new Date().toDateString();
             let currentUsed = sessionProfile.lastUsedDate === today ? (sessionProfile.proUsed || 0) : 0;
             const isProMode = currentUsed < (sessionProfile.proQuota || 3);
@@ -827,6 +957,7 @@
             const bDay = document.getElementById('birthDay').value;
             const bMonth = document.getElementById('birthMonth').value;
             const bYear = parseInt(document.getElementById('birthYear').value);
+            
             const birthTime = document.getElementById('birthTime').value;
             const birthCountry = document.getElementById('birthCountry').value;
             const birthPlace = document.getElementById('birthPlace').value;
@@ -838,45 +969,118 @@
             document.getElementById('resultContent').classList.add('hidden');
             document.getElementById('loadingState').classList.remove('hidden');
 
-            let yearAD = (bYear > 2400) ? bYear - 543 : bYear;
-            let yearBE = (bYear > 2400) ? bYear : bYear + 543;
+            const loadingSub = document.getElementById('loadingSubText');
+            if (isProMode) {
+                loadingSub.innerHTML = `<span class="text-amber-400 font-bold">ใช้โควตา Deep Research Pro ของ chumphola@gmail.com</span><br>กำลังขุดลึกถึงรากฐานดวงดาว...`;
+            } else {
+                loadingSub.innerHTML = `<span class="text-blue-400 font-bold">โควตา Pro หมดแล้ว - สลับเป็นโหมด Fast อัตโนมัติ</span><br>กำลังประมวลผลคำทำนาย...`;
+            }
+
+            let yearAD, yearBE;
+            if (bYear > 2400) {
+                yearBE = bYear;
+                yearAD = bYear - 543;
+            } else {
+                yearAD = bYear;
+                yearBE = bYear + 543;
+            }
             const formattedDateStr = `${bDay}/${bMonth}/${yearAD} (พ.ศ. ${yearBE})`;
 
             let imagesB64 = [];
-            let finalLeft = cachedLeftHand, finalRight = cachedRightHand;
+            let promptBase = ``;
+            
+            let finalLeftHandB64 = cachedLeftHand;
+            let finalRightHandB64 = cachedRightHand;
+
             if (isPalmistry) {
                 try {
-                    if (document.getElementById('leftHandImg').files[0]) finalLeft = await fileToBase64(document.getElementById('leftHandImg').files[0]);
-                    if (document.getElementById('rightHandImg').files[0]) finalRight = await fileToBase64(document.getElementById('rightHandImg').files[0]);
-                    if (finalLeft && finalRight) imagesB64 = [finalLeft, finalRight];
-                    else throw new Error("Missing images");
+                    const leftInput = document.getElementById('leftHandImg');
+                    const rightInput = document.getElementById('rightHandImg');
+                    
+                    if (leftInput.files[0]) {
+                        finalLeftHandB64 = await fileToBase64(leftInput.files[0]);
+                    }
+                    if (rightInput.files[0]) {
+                        finalRightHandB64 = await fileToBase64(rightInput.files[0]);
+                    }
+                    
+                    if (finalLeftHandB64 && finalRightHandB64) {
+                        imagesB64 = [finalLeftHandB64, finalRightHandB64];
+                        // อัปเดต Prompt ให้ AI ทำการวิเคราะห์ภาพลายมือแยกข้าง
+                        promptBase += `วิเคราะห์เส้นลายมือหลัก (เช่น เส้นชีวิต เส้นสมอง เส้นหัวใจ เส้นวาสนา) ของมือแต่ละข้างจากรูปภาพที่แนบมา และผสานคำทำนายร่วมกับดวงชะตาวันเกิด (กรุณาระบุรายละเอียดการวิเคราะห์ลายมือซ้ายลงใน palmistryDetails.leftHand และลายมือขวาลงใน palmistryDetails.rightHand) `;
+                    } else {
+                        throw new Error("Missing images");
+                    }
                 } catch (err) {
-                    showToast("กรุณาอัปโหลดรูปภาพให้ครบ", true);
+                    showToast("ไม่สามารถอ่านไฟล์รูปภาพได้ กรุณาอัปโหลดรูปภาพใหม่", true);
                     document.getElementById('loadingState').classList.add('hidden');
                     document.getElementById('welcomeState').classList.remove('hidden');
                     return;
                 }
             }
 
-            let promptBase = `ข้อมูล: ชื่อเล่น: ${sessionProfile.nickname}, เกิด: ${formattedDateStr}, เวลา: ${birthTime}, ประเทศ: ${birthCountry}, เมือง: ${birthPlace}.`;
-            if (isPalmistry) promptBase += ` วิเคราะห์เส้นลายมือจากรูปแนบแยกข้างซ้ายขวาด้วย.`;
-            if (customQuestion) promptBase += ` คำถามพิเศษ: "${customQuestion}".`;
+            promptBase += `ข้อมูล: ชื่อเล่น: ${sessionProfile.nickname}, เกิด: ${formattedDateStr}, เวลา: ${birthTime} (ท้องถิ่น), ประเทศ: ${birthCountry}, เมือง: ${birthPlace}.`;
+            if (birthLocationMap) promptBase += ` พิกัด: ${birthLocationMap}.`;
+            if (customQuestion) promptBase += ` คำถามเจาะจง: "${customQuestion}".`;
 
             try {
                 const result = await callGemini(promptBase, imagesB64, isProMode);
+                
                 if (isProMode) {
+                    const newUsed = currentUsed + 1;
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', sessionProfile.email), { 
-                        proUsed: currentUsed + 1, lastUsedDate: today
+                        proUsed: newUsed,
+                        lastUsedDate: today
                     });
                 }
-                currentResult = { ...result, nickname: sessionProfile.nickname, email: sessionProfile.email, dateStr: formattedDateStr, isPalmistry, leftHandImage: finalLeft, rightHandImage: finalRight, isProMode, customQuestion, timestamp: Date.now() };
+
+                currentResult = { 
+                    ...result, 
+                    nickname: sessionProfile.nickname,
+                    email: sessionProfile.email,
+                    dateStr: formattedDateStr,
+                    isPalmistry,
+                    leftHandImage: isPalmistry ? finalLeftHandB64 : null, // เก็บรูปภาพไว้เผื่อใช้แสดงซ้ำ
+                    rightHandImage: isPalmistry ? finalRightHandB64 : null,
+                    isProMode,
+                    customQuestion,
+                    timestamp: Date.now() 
+                };
+                
+                // บันทึกประวัติ
                 await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'readings'), currentResult);
-                localStorage.setItem('astro_form_' + sessionProfile.email, JSON.stringify({ ...document.getElementById('astroForm').elements, leftHand: finalLeft, rightHand: finalRight, usePalmistry: isPalmistry }));
+
+                const formDataToSave = {
+                    birthDay: bDay, 
+                    birthMonth: bMonth, 
+                    birthYear: bYear,
+                    birthTime: birthTime, 
+                    birthCountry: birthCountry, 
+                    birthPlace: birthPlace, 
+                    birthLocationMap: birthLocationMap,
+                    usePalmistry: isPalmistry,
+                    leftHand: isPalmistry ? finalLeftHandB64 : null,
+                    rightHand: isPalmistry ? finalRightHandB64 : null
+                };
+                try {
+                    localStorage.setItem('astro_form_' + sessionProfile.email, JSON.stringify(formDataToSave));
+                    cachedLeftHand = formDataToSave.leftHand;
+                    cachedRightHand = formDataToSave.rightHand;
+                } catch(e) {
+                    console.warn("Could not save form data to localStorage (might be full)", e);
+                }
+
                 displayResult(currentResult);
                 showToast("การวิเคราะห์เสร็จสมบูรณ์");
             } catch (err) {
-                console.error(err);
-                showToast(err.message.includes("KEY_LEAKED") ? err.message : "เกิดข้อผิดพลาด: " + err.message, true);
+                console.error("Prediction Error:", err);
+                if (err.message === "Missing_Gemini_Key") {
+                    showToast("ข้อผิดพลาด: โปรดใส่ Gemini API Key ในโค้ดก่อนนำไปรันบน GitHub", true);
+                } else if (err.name === "SyntaxError") {
+                    showToast("ข้อผิดพลาด: AI ส่งข้อมูลกลับมาผิดรูปแบบ (JSON Parsing Failed)", true);
+                } else {
+                    showToast("ข้อผิดพลาด: " + err.message, true);
+                }
                 document.getElementById('loadingState').classList.add('hidden');
                 document.getElementById('welcomeState').classList.remove('hidden');
             }
@@ -885,10 +1089,19 @@
         const displayResult = (data) => {
             document.getElementById('loadingState').classList.add('hidden');
             document.getElementById('resultContent').classList.remove('hidden');
+            
             const modeTag = document.getElementById('resModeTag');
-            modeTag.innerText = data.isProMode ? "Deep Research Pro" : "Fast Mode";
-            modeTag.className = `text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md ml-2 border ${data.isProMode ? 'border-amber-500 text-amber-500 bg-amber-500/10' : 'border-blue-500 text-blue-500 bg-blue-500/10'}`;
+            if (data.isProMode) {
+                modeTag.innerText = "Deep Research Pro";
+                modeTag.className = "text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md ml-2 border border-amber-500 text-amber-500 bg-amber-500/10";
+            } else {
+                modeTag.innerText = "Fast Mode";
+                modeTag.className = "text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md ml-2 border border-blue-500 text-blue-500 bg-blue-500/10";
+            }
+
             document.getElementById('resTypeTag').innerText = data.isPalmistry ? "โหราศาสตร์ + หัตถศาสตร์" : "โหราศาสตร์ไฮบริด";
+            document.getElementById('resTypeTag').className = `text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md ${data.isPalmistry ? 'text-pink-400 bg-pink-500/10' : 'text-indigo-400 bg-indigo-500/10'}`;
+            
             document.getElementById('resName').innerText = `ชะตาชีวิตของคุณ ${data.nickname}`;
             document.getElementById('resSummary').innerText = `"${data.summary}"`;
             document.getElementById('resPersonality').innerText = data.personality || "-";
@@ -896,35 +1109,60 @@
             document.getElementById('resFinance').innerText = data.finance || "-";
             document.getElementById('resLove').innerText = data.love || "-";
             document.getElementById('resHealth').innerText = data.health || "-";
+            
+            // แสดงข้อมูลลายมือ
             if (data.isPalmistry && data.palmistryDetails) {
                 document.getElementById('resPalmistryContainer').classList.remove('hidden');
                 if (data.leftHandImage) document.getElementById('resLeftHandImg').src = 'data:image/jpeg;base64,' + data.leftHandImage;
                 if (data.rightHandImage) document.getElementById('resRightHandImg').src = 'data:image/jpeg;base64,' + data.rightHandImage;
-                document.getElementById('resLeftHandAnalysis').innerText = data.palmistryDetails.leftHand || "ไม่พบข้อมูล";
-                document.getElementById('resRightHandAnalysis').innerText = data.palmistryDetails.rightHand || "ไม่พบข้อมูล";
-            } else document.getElementById('resPalmistryContainer').classList.add('hidden');
-            if (data.customQuestion) {
+                
+                document.getElementById('resLeftHandAnalysis').innerText = data.palmistryDetails.leftHand || "ไม่สามารถวิเคราะห์รายละเอียดได้";
+                document.getElementById('resRightHandAnalysis').innerText = data.palmistryDetails.rightHand || "ไม่สามารถวิเคราะห์รายละเอียดได้";
+            } else {
+                document.getElementById('resPalmistryContainer').classList.add('hidden');
+            }
+
+            if (data.customQuestion && data.customAnswer) {
                 document.getElementById('resCustomContainer').classList.remove('hidden');
                 document.getElementById('resCustomQuestionText').innerText = `ถาม: ${data.customQuestion}`;
                 document.getElementById('resCustomAnswer').innerText = data.customAnswer;
-            } else document.getElementById('resCustomContainer').classList.add('hidden');
+            } else {
+                document.getElementById('resCustomContainer').classList.add('hidden');
+            }
+
             document.getElementById('res1m').innerText = data.periods?.oneMonth || "-";
             document.getElementById('res6m').innerText = data.periods?.sixMonths || "-";
             document.getElementById('res1y').innerText = data.periods?.oneYear || "-";
+
             window.scrollTo({ top: document.getElementById('resultContent').offsetTop - 100, behavior: 'smooth' });
         };
 
         const loadHistory = () => {
             if (!sessionProfile || !currentUser) return;
-            onSnapshot(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'readings'), (snapshot) => {
+            const historyCol = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'readings');
+            onSnapshot(historyCol, (snapshot) => {
                 const list = document.getElementById('historyList');
                 list.innerHTML = "";
-                const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.email === sessionProfile.email).sort((a, b) => b.timestamp - a.timestamp);
-                if (docs.length === 0) list.innerHTML = `<p class="text-xs text-slate-600 italic">ยังไม่มีประวัติ</p>`;
+                const docs = snapshot.docs
+                    .map(d => ({ id: d.id, ...d.data() }))
+                    .filter(d => d.email === sessionProfile.email) 
+                    .sort((a, b) => b.timestamp - a.timestamp);
+                    
+                if (docs.length === 0) return list.innerHTML = `<p class="text-xs text-slate-600 italic">ยังไม่มีประวัติ</p>`;
+                
                 docs.forEach(item => {
                     const btn = document.createElement('button');
                     btn.className = "w-full text-left p-3 rounded-xl bg-slate-800/40 hover:bg-indigo-500/20 border border-slate-700/50 transition-all group";
-                    btn.innerHTML = `<div class="flex items-center justify-between"><div class="flex items-center gap-2 text-sm font-bold text-slate-200 group-hover:text-indigo-400">${item.isPalmistry ? '<i data-lucide="hand" class="text-pink-400 w-4 h-4"></i>' : '<i data-lucide="star" class="text-indigo-400 w-4 h-4"></i>'} ${item.nickname}</div>${item.isProMode ? '<span class="text-[9px] bg-amber-500/20 text-amber-500 px-1 rounded">PRO</span>' : ''}</div><div class="text-[10px] text-slate-500 mt-1 ml-6">${new Date(item.timestamp).toLocaleDateString('th-TH')}</div>`;
+                    btn.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2 text-sm font-bold text-slate-200 group-hover:text-indigo-400">
+                                ${item.isPalmistry ? '<i data-lucide="hand" class="text-pink-400 w-4 h-4"></i>' : '<i data-lucide="star" class="text-indigo-400 w-4 h-4"></i>'}
+                                ${item.nickname}
+                            </div>
+                            ${item.isProMode ? '<span class="text-[9px] bg-amber-500/20 text-amber-500 px-1 rounded">PRO</span>' : ''}
+                        </div>
+                        <div class="text-[10px] text-slate-500 mt-1 ml-6">${new Date(item.timestamp).toLocaleDateString('th-TH')}</div>
+                    `;
                     btn.onclick = () => displayResult(item);
                     list.appendChild(btn);
                 });
@@ -938,42 +1176,41 @@
             const doc = new jsPDF();
             doc.setFontSize(22); doc.setTextColor(79, 70, 229);
             doc.text("AstroHybrid AI Report", 105, 20, { align: "center" });
-            doc.setFontSize(12); doc.text(`Type: ${currentResult.isPalmistry ? 'Astrology & Palmistry' : 'Astrology'}`, 105, 28, { align: "center" });
+            
+            doc.setFontSize(12); doc.setTextColor(100, 100, 100);
+            const modeText = currentResult.isProMode ? "Deep Research Pro" : "Fast Mode";
+            doc.text(`Analysis Type: ${currentResult.isPalmistry ? 'Astrology & Palmistry' : 'Astrology'} [${modeText}]`, 105, 28, { align: "center" });
+
             doc.setFontSize(14); doc.setTextColor(20, 20, 20);
             doc.text(`Name: ${currentResult.nickname}`, 20, 45);
-            doc.text(`Date: ${currentResult.dateStr}`, 20, 52);
+            doc.text(`Date Info: ${currentResult.dateStr}`, 20, 52);
             doc.line(20, 60, 190, 60);
+
             let y = 70;
-            const add = (t, c) => {
+            const addSection = (title, content) => {
                 if (y > 260) { doc.addPage(); y = 20; }
-                doc.setFontSize(12); doc.setTextColor(79, 70, 229); doc.text(t, 20, y); y += 6;
-                doc.setFontSize(10); doc.setTextColor(60, 60, 60);
-                const l = doc.splitTextToSize(c || "-", 170); doc.text(l, 20, y);
-                y += (l.length * 5) + 10;
+                doc.setFontSize(12); doc.setTextColor(79, 70, 229); doc.text(title, 20, y); y += 6;
+                doc.setFontSize(11); doc.setTextColor(60, 60, 60);
+                const lines = doc.splitTextToSize(content || "-", 170); doc.text(lines, 20, y);
+                y += (lines.length * 6) + 10;
             };
-            add("Summary", currentResult.summary);
-            add("Personality", currentResult.personality);
+
+            addSection("Summary", currentResult.summary);
+            addSection("Personality", currentResult.personality);
+            
+            // เพิ่มผลวิเคราะห์ลายมือลงใน PDF
             if (currentResult.isPalmistry && currentResult.palmistryDetails) {
-                add("Left Hand Analysis", currentResult.palmistryDetails.leftHand);
-                add("Right Hand Analysis", currentResult.palmistryDetails.rightHand);
+                addSection("Palmistry Analysis (Left Hand)", currentResult.palmistryDetails.leftHand);
+                addSection("Palmistry Analysis (Right Hand)", currentResult.palmistryDetails.rightHand);
             }
-            if (currentResult.customQuestion) add(`Q: ${currentResult.customQuestion}`, currentResult.customAnswer);
+
+            if (currentResult.customQuestion) addSection(`Q: ${currentResult.customQuestion}`, currentResult.customAnswer);
+
             doc.save(`Astro_${currentResult.nickname}.pdf`);
+            showToast("ดาวน์โหลดไฟล์ PDF สำเร็จ!");
         };
 
-        document.getElementById('exportBtn').addEventListener('click', generatePDF);
-        document.getElementById('showAdminLoginBtn').onclick = () => document.getElementById('adminLoginOverlay').classList.remove('hidden');
-        document.getElementById('closeAdminLoginBtn').onclick = () => document.getElementById('adminLoginOverlay').classList.add('hidden');
-        document.getElementById('adminLoginForm').onsubmit = (e) => {
-            e.preventDefault();
-            if (document.getElementById('adminUser').value === 'admin' && document.getElementById('adminPass').value === 'Hongfa401') {
-                document.getElementById('adminLoginOverlay').classList.add('hidden');
-                document.getElementById('authOverlay').classList.add('hidden');
-                document.getElementById('adminDashboard').classList.remove('hidden');
-                initAdminDashboard();
-            } else showToast("Username หรือ Password ไม่ถูกต้อง", true);
-        };
-        document.getElementById('exitAdminBtn').onclick = () => { document.getElementById('adminDashboard').classList.add('hidden'); window.location.reload(); };
+        document.getElementById('exportBtn').addEventListener('click', () => generatePDF());
 
     </script>
 </body>
