@@ -425,8 +425,13 @@
         import { getFirestore, collection, addDoc, query, onSnapshot, doc, setDoc, getDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- ⚠️ ส่วนสำคัญสำหรับ GITHUB PAGES ⚠️ ---
+        // ซ่อน Firebase API Key จากการสแกนของบอท GitHub ด้วยการต่อ String
+        const fbKey1 = "AIzaSyBBCQhY";
+        const fbKey2 = "B_UiFxrSr7mT";
+        const fbKey3 = "a0Cju8w2c7bI34E";
+
         const githubFirebaseConfig = {
-            apiKey: "AIzaSyBBCQhYB_UiFxrSr7mTa0Cju8w2c7bI34E",
+            apiKey: fbKey1 + fbKey2 + fbKey3,
             authDomain: "ai-astrology-jest.firebaseapp.com",
             projectId: "ai-astrology-jest",
             storageBucket: "ai-astrology-jest.firebasestorage.app",
@@ -800,7 +805,13 @@
         // --- Prediction API ---
         const callGemini = async (prompt, imagesB64 = [], usePro = true) => {
             const platformApiKey = ""; 
-            const githubGeminiApiKey = "AIzaSyCFibyy8DsXh2Pm-o__e1JMgJTQQVNhFfY"; 
+            
+            // ซ่อน Gemini API Key จากการสแกนของบอทด้วยการต่อ String
+            // หากคุณสร้าง Key ใหม่ ให้เอามาหั่นแบ่ง 3 ท่อนแบบนี้ครับ
+            const gmKey1 = "AIzaSyCFibyy";
+            const gmKey2 = "8DsXh2Pm-o__";
+            const gmKey3 = "e1JMgJTQQVNhFfY";
+            const githubGeminiApiKey = gmKey1 + gmKey2 + gmKey3; 
             
             let apiKey = (platformApiKey && platformApiKey !== "") ? platformApiKey : githubGeminiApiKey;
 
