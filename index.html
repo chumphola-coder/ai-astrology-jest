@@ -60,8 +60,8 @@
                     <input type="email" id="loginEmail" required pattern=".+@gmail\.com" title="ต้องเป็น @gmail.com เท่านั้น" class="w-full bg-slate-800/80 border border-slate-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder-slate-500" placeholder="your@gmail.com">
                 </div>
                 <div>
-                    <label class="block text-sm text-slate-300 mb-1">ชื่อเล่น <span class="text-xs text-slate-500">(เฉพาะผู้ใช้ใหม่)</span></label>
-                    <input type="text" id="loginNickname" class="w-full bg-slate-800/80 border border-slate-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder-slate-500" placeholder="เช่น นัท, พลอย (ไม่ต้องใส่ถ้าเคยสมัครแล้ว)">
+                    <label class="block text-sm text-slate-300 mb-1">ชื่อเล่น <span class="text-xs text-amber-400">(ใช้ยืนยันตัวตนแทนรหัสผ่าน)</span></label>
+                    <input type="text" id="loginNickname" required class="w-full bg-slate-800/80 border border-slate-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder-slate-500" placeholder="เช่น นัท, พลอย">
                 </div>
                 <button type="submit" id="authSubmitBtn" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-4">
                     เข้าสู่ระบบ / ลงทะเบียน
@@ -531,6 +531,16 @@
                 const docSnap = await getDoc(profileRef);
                 
                 if (docSnap.exists()) {
+                    const existingData = docSnap.data();
+                    
+                    // ระบบตรวจสอบชื่อเล่น (เสมือนรหัสผ่าน)
+                    if (existingData.nickname !== nickname) {
+                        showToast("ชื่อเล่นไม่ถูกต้อง (ไม่ตรงกับอีเมลนี้) โปรดลองอีกครั้ง", true);
+                        btn.innerText = "เข้าสู่ระบบ / ลงทะเบียน";
+                        btn.disabled = false;
+                        return;
+                    }
+
                     showToast("เข้าสู่ระบบสำเร็จ!");
                     sessionStorage.setItem('activeSession', email);
                     listenToProfile(email); 
@@ -570,7 +580,7 @@
                 }
             } catch (err) {
                 console.error(err);
-                showToast("เกิดข้อผิดพลาดในการเข้าสู่ระบบ เช็คสิทธิ์ Firebase", true);
+                showToast("เกิดข้อผิดพลาดในการเข้าสู่ระบบ: " + err.message, true);
             } finally {
                 btn.innerText = "เข้าสู่ระบบ / ลงทะเบียน";
                 btn.disabled = false;
@@ -699,9 +709,10 @@
             // ⚠️ ต้องใส่ Gemini API Key ของคุณที่นี่
             const githubGeminiApiKey = "AIzaSyCFibyy8DsXh2Pm-o__e1JMgJTQQVNhFfY"; 
             
+            // หากระบบรู้ว่ารันบน GitHub จะสลับไปใช้ Key และโมเดลสาธารณะที่เสถียร
             if (typeof __firebase_config === 'undefined') {
                 apiKey = githubGeminiApiKey;
-                modelName = "gemini-2.0-flash"; // เปลี่ยนไปใช้รุ่นสำหรับสาธารณะเมื่ออยู่บน GitHub
+                modelName = "gemini-1.5-flash"; // ใช้เวอร์ชัน 1.5 เพราะรองรับ JSON Schema ผ่าน API ได้ 100% แน่นอน
                 if (!apiKey || apiKey === "ใส่_GEMINI_API_KEY_ของคุณที่นี่") {
                     throw new Error("Missing_Gemini_Key");
                 }
@@ -717,6 +728,7 @@
             imagesB64.forEach(b64 => parts.push({ inlineData: { mimeType: "image/jpeg", data: b64 } }));
 
             let delay = 1000;
+            // ไม่ควรทำการ Retry หาก Error เกิดจากรูปแบบคำขอผิด (HTTP 400)
             for (let i = 0; i < 5; i++) {
                 try {
                     const response = await fetch(url, {
@@ -752,14 +764,28 @@
                     });
 
                     if (!response.ok) {
-                        const errorDetails = await response.text();
-                        console.error("Gemini API Error Details:", errorDetails);
-                        throw new Error("API Request Failed");
+                        const errorText = await response.text();
+                        console.error("Gemini API Error:", errorText);
+                        
+                        // ถ้ารหัส 400 (Bad Request) มักแปลว่าโมเดลไม่รองรับ Schema ให้โยน Error แจ้งเตือนเลย
+                        if (response.status === 400) {
+                            throw new Error("Google AI ปฏิเสธคำขอ (HTTP 400): " + errorText.substring(0, 50));
+                        }
+                        throw new Error(`API Request Failed (HTTP ${response.status})`);
                     }
+                    
                     const data = await response.json();
-                    return JSON.parse(data.candidates[0].content.parts[0].text);
+                    let responseText = data.candidates[0].content.parts[0].text;
+                    
+                    // ทำความสะอาดข้อความก่อนแปลงเป็น JSON (เพื่อป้องกันปัญหา Gemini ส่งมาเป็น Markdown block)
+                    responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+                    
+                    return JSON.parse(responseText);
+                    
                 } catch (err) {
-                    if (err.message === "Missing_Gemini_Key") throw err; 
+                    if (err.message === "Missing_Gemini_Key" || err.message.includes("HTTP 400") || err.name === "SyntaxError") {
+                        throw err; // ถ้าเป็น Error ร้ายแรง ไม่ต้องเสียเวลา Retry
+                    }
                     if (i === 4) throw err;
                     await new Promise(r => setTimeout(r, delay));
                     delay *= 2;
@@ -850,11 +876,15 @@
                 displayResult(currentResult);
                 showToast("การวิเคราะห์เสร็จสมบูรณ์");
             } catch (err) {
-                console.error(err);
+                console.error("Prediction Error:", err);
+                
+                // แจ้ง Error แบบเจาะจงให้เห็นบนหน้าจอเพื่อง่ายต่อการแก้ไข
                 if (err.message === "Missing_Gemini_Key") {
                     showToast("ข้อผิดพลาด: โปรดใส่ Gemini API Key ในโค้ดก่อนนำไปรันบน GitHub", true);
+                } else if (err.name === "SyntaxError") {
+                    showToast("ข้อผิดพลาด: AI ส่งข้อมูลกลับมาผิดรูปแบบ (JSON Parsing Failed)", true);
                 } else {
-                    showToast("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI หรือฐานข้อมูล โปรดลองใหม่", true);
+                    showToast("ข้อผิดพลาด: " + err.message, true);
                 }
                 document.getElementById('loadingState').classList.add('hidden');
                 document.getElementById('welcomeState').classList.remove('hidden');
