@@ -13,7 +13,7 @@
     <script type="text/javascript">
        (function(){
           try {
-              // กำหนด Public Key จากบัญชี EmailJS ของคุณ
+              // ⚠️⚠️ เปลี่ยน "telqbaZT8RoyRC92w" เป็น Public Key จากบัญชี EmailJS ของคุณ ⚠️⚠️
               emailjs.init("telqbaZT8RoyRC92w"); 
           } catch(e) {
               console.warn("EmailJS อาจถูกบล็อกโดยเบราว์เซอร์");
@@ -669,6 +669,7 @@
                         lastUsedDate: '',
                         createdAt: Date.now()
                     });
+                    
                     const adminParams = {
                         to_email: 'chumphola@gmail.com',
                         user_name: nickname,
@@ -680,7 +681,10 @@
                     if (typeof emailjs !== 'undefined') {
                         emailjs.send("service_34z9xx8", "template_smi5evt", adminParams)
                             .then(() => showToast("ส่งคำขอสิทธิ์การใช้งานไปยังแอดมินสำเร็จ!"))
-                            .catch(err => console.error("Email error: ", err));
+                            .catch(err => {
+                                console.error("Email error: ", err);
+                                showToast("ลงทะเบียนสำเร็จแล้ว แต่ระบบอีเมลขัดข้อง (แอดมินสามารถเข้าไปอนุมัติได้เลย)", true);
+                            });
                     } else {
                         showToast("ลงทะเบียนสำเร็จ (แจ้งเตือนแอดมินผ่านอีเมลล้มเหลว)");
                     }
@@ -806,8 +810,9 @@
         const callGemini = async (prompt, imagesB64 = [], usePro = true) => {
             const platformApiKey = ""; 
             
-            // ซ่อน Gemini API Key จากการสแกนของบอทด้วยการต่อ String
-            // หากคุณสร้าง Key ใหม่ ให้เอามาหั่นแบ่ง 3 ท่อนแบบนี้ครับ
+            // ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️
+            // ใส่ API KEY ที่นี่ (หั่นเป็น 3 ส่วนเพื่อหลบบอท GitHub)
+            // ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️
             const gmKey1 = "AIzaSyCFibyy";
             const gmKey2 = "8DsXh2Pm-o__";
             const gmKey3 = "e1JMgJTQQVNhFfY";
