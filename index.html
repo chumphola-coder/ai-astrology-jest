@@ -51,7 +51,7 @@
             <div class="absolute -bottom-10 -right-10 w-32 h-32 bg-purple-600 rounded-full mix-blend-multiply filter blur-2xl opacity-50"></div>
             
             <i data-lucide="sparkles" class="text-indigo-400 mx-auto mb-4" size="48"></i>
-            <h2 class="text-2xl font-bold mb-2 text-white">เข้าสู่ระบบ AI Astrology Jest<br>(หมดดูไม่แม่น)</h2>
+            <h2 class="text-2xl font-bold mb-2 text-white">เข้าสู่ระบบ AI Astrology Jest<br>(หมอดูไม่แม่น)</h2>
             <p class="text-sm text-slate-400 mb-6">กรุณาใช้บัญชี <span class="text-red-400 font-bold">@gmail.com</span> เท่านั้นในการลงทะเบียน</p>
             
             <form id="authForm" class="space-y-4 text-left relative z-10">
@@ -69,7 +69,6 @@
             </form>
 
             <div class="mt-6 pt-6 border-t border-slate-700/50 relative z-10">
-                <!-- เพิ่ม type="button" เพื่อป้องกันการ submit form อัตโนมัติ -->
                 <button type="button" id="showAdminLoginBtn" class="text-xs text-slate-500 hover:text-indigo-400 flex items-center justify-center gap-1 w-full transition-colors">
                     <i data-lucide="shield"></i> Admin Access
                 </button>
@@ -107,7 +106,7 @@
                     <i data-lucide="sparkles" class="text-white"></i>
                 </div>
                 <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 hidden sm:block">
-                    AI Astrology Jest (หมดดูไม่แม่น)
+                    AI Astrology Jest (หมอดูไม่แม่น)
                 </h1>
             </div>
             <div class="flex items-center gap-4">
@@ -122,7 +121,7 @@
         </div>
     </header>
 
-    <!-- Admin Dashboard (Hidden by default) -->
+    <!-- Admin Dashboard -->
     <section id="adminDashboard" class="hidden max-w-7xl mx-auto p-4 md:p-8">
         <div class="glass-card p-6 rounded-3xl shadow-xl border border-red-500/30">
             <div class="flex justify-between items-center mb-6">
@@ -278,7 +277,6 @@
                 <!-- Result Display Area -->
                 <div class="bg-gradient-to-br from-indigo-900/40 via-slate-900 to-purple-900/40 border border-indigo-500/30 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
                     <div class="flex flex-wrap gap-2 mb-6 lg:absolute lg:top-8 lg:right-8 lg:mb-0">
-                        <!-- ปุ่ม Export PDF -->
                         <button type="button" id="exportBtn" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20">
                             <i data-lucide="download" size="16"></i> โหลด PDF
                         </button>
@@ -375,7 +373,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // นำเข้า getDocs เพิ่มเพื่อใช้ค้นหาอีเมล
         import { getFirestore, collection, addDoc, query, onSnapshot, doc, setDoc, getDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- ⚠️ ส่วนสำคัญสำหรับ GITHUB PAGES ⚠️ ---
@@ -409,12 +406,10 @@
 
         let currentUser = null;
         let sessionProfile = null;
-        let isAdminView = false;
         let unsubscribeAdmin = null;
         let currentResult = null;
         let profileUnsubscribe = null;
 
-        // --- UI Utilities ---
         const showToast = (msg, isError = false) => {
             const toast = document.getElementById('toast');
             toast.className = `fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform transition-all z-50 ${isError ? 'bg-red-600' : 'bg-emerald-600'}`;
@@ -439,7 +434,6 @@
             }
         };
 
-        // --- Core Auth Logic ---
         const initAuth = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -448,20 +442,29 @@
                     await signInAnonymously(auth);
                 }
             } catch(e) {
-                console.error("Auth init failed. Please check Firebase config:", e);
-                showToast("การเชื่อมต่อฐานข้อมูลล้มเหลว โปรดตรวจสอบ Firebase Config", true);
+                console.error("Auth init failed", e);
             }
         };
 
+        // ฟังการเปลี่ยนแปลงโปรไฟล์ พร้อมตรวจเช็คสถานะการล็อกอินใน Session
         const listenToProfile = (uid) => {
-            if (profileUnsubscribe) profileUnsubscribe(); // เคลียร์ listener ตัวเก่าหากมีการล็อกอินใหม่
+            if (profileUnsubscribe) profileUnsubscribe();
 
             const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', uid);
             profileUnsubscribe = onSnapshot(profileRef, (docSnap) => {
                 if (docSnap.exists()) {
                     sessionProfile = docSnap.data();
-                    document.getElementById('displayNickname').innerText = sessionProfile.nickname;
                     
+                    // บังคับเช็คการล็อกเอาต์ (ถ้า session ไม่มีอีเมลตรงกัน ให้เด้งกลับไปหน้าแรก)
+                    const activeSession = sessionStorage.getItem('activeSession');
+                    if (!activeSession || activeSession !== sessionProfile.email.toLowerCase()) {
+                        document.getElementById('authOverlay').classList.remove('hidden');
+                        document.getElementById('mainAppContent').classList.add('hidden');
+                        document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                        return;
+                    }
+
+                    document.getElementById('displayNickname').innerText = sessionProfile.nickname;
                     document.getElementById('authOverlay').classList.add('hidden');
                     
                     if (sessionProfile.status === 'pending') {
@@ -474,27 +477,22 @@
                         loadHistory();
                     }
                 } else {
-                    // ถ้าไม่พบโปรไฟล์ ให้แสดงหน้า Login
                     document.getElementById('authOverlay').classList.remove('hidden');
                     document.getElementById('mainAppContent').classList.add('hidden');
                     document.getElementById('pendingApprovalScreen').classList.add('hidden');
                 }
-            }, (error) => {
-                console.error("Listen to profile error:", error);
             });
         };
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
-                // ในตอนแรก (โหลดเพจ) ให้พยายามฟังข้อมูลของ UID ปัจจุบัน
                 listenToProfile(user.uid);
             }
         });
 
         initAuth();
 
-        // --- Login / Register (อัปเดตระบบตรวจสอบอีเมล) ---
         document.getElementById('authForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!currentUser) return;
@@ -511,7 +509,6 @@
             btn.disabled = true;
 
             try {
-                // 1. ดึงโปรไฟล์ทั้งหมดเพื่อดูว่าอีเมลนี้เคยลงทะเบียนไว้แล้วหรือยัง (รองรับผู้ใช้เดิมหรือการใช้งานข้ามอุปกรณ์)
                 const profilesCol = collection(db, 'artifacts', appId, 'public', 'data', 'profiles');
                 const snapshot = await getDocs(profilesCol);
                 
@@ -523,11 +520,10 @@
                 });
 
                 if (existingProfile) {
-                    // หากพบว่าเคยลงทะเบียนแล้ว ให้ดึงข้อมูลมาใช้ทันที
                     showToast("ยินดีต้อนรับกลับเข้าสู่ระบบ");
-                    listenToProfile(existingProfile.uid); // สลับไปฟังโปรไฟล์เดิมที่พบ
+                    sessionStorage.setItem('activeSession', existingProfile.email.toLowerCase());
+                    listenToProfile(existingProfile.uid); 
                 } else {
-                    // หากเป็นผู้ใช้ใหม่เอี่ยม ให้สร้างโปรไฟล์ใหม่
                     const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', currentUser.uid);
                     await setDoc(profileRef, { 
                         uid: currentUser.uid,
@@ -549,16 +545,14 @@
                     emailjs.send("service_34z9xx8", "template_smi5evt", adminParams)
                         .then(() => {
                             showToast("ส่งคำขอสิทธิ์การใช้งานไปยังแอดมินสำเร็จ!");
-                        }).catch(err => {
-                            console.error("Email error: ", err);
-                            showToast("สร้างบัญชีสำเร็จ (แต่ส่งอีเมลแจ้งแอดมินไม่สำเร็จ)");
-                        });
+                        }).catch(err => console.error("Email error: ", err));
 
+                    sessionStorage.setItem('activeSession', email);
                     listenToProfile(currentUser.uid);
                 }
             } catch (err) {
                 console.error(err);
-                showToast("เกิดข้อผิดพลาดในการลงทะเบียน เช็ค Firebase Config หรือ Permission", true);
+                showToast("เกิดข้อผิดพลาดในการลงทะเบียน เช็ค Firebase Config", true);
             } finally {
                 btn.innerText = "ลงทะเบียน / เข้าใช้งาน";
                 btn.disabled = false;
@@ -566,28 +560,18 @@
         });
 
         document.getElementById('logoutBtn').addEventListener('click', () => {
-            // ซ่อนหน้าจอทั้งหมดและเคลียร์ค่าต่างๆ เมื่อกด Logout
-            document.getElementById('authOverlay').classList.remove('hidden');
-            document.getElementById('mainAppContent').classList.add('hidden');
-            document.getElementById('pendingApprovalScreen').classList.add('hidden');
-            document.getElementById('loginNickname').value = '';
-            document.getElementById('loginEmail').value = '';
-            sessionProfile = null;
-            if (profileUnsubscribe) {
-                profileUnsubscribe(); // หยุดดึงข้อมูล
-                profileUnsubscribe = null;
-            }
+            // ระบบล็อกเอาต์ที่แท้จริง: ล้าง Session แล้วโหลดหน้าเว็บใหม่
+            sessionStorage.removeItem('activeSession');
+            window.location.reload(); 
         });
 
         // --- Admin Controls ---
         document.getElementById('showAdminLoginBtn').addEventListener('click', () => {
             document.getElementById('adminLoginOverlay').classList.remove('hidden');
         });
-        
         document.getElementById('closeAdminLoginBtn').addEventListener('click', () => {
             document.getElementById('adminLoginOverlay').classList.add('hidden');
         });
-
         document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const u = document.getElementById('adminUser').value;
@@ -608,9 +592,9 @@
         document.getElementById('exitAdminBtn').addEventListener('click', () => {
             document.getElementById('adminDashboard').classList.add('hidden');
             if (unsubscribeAdmin) unsubscribeAdmin();
-            if (sessionProfile && sessionProfile.status === 'approved') {
+            if (sessionProfile && sessionProfile.status === 'approved' && sessionStorage.getItem('activeSession')) {
                 document.getElementById('mainAppContent').classList.remove('hidden');
-            } else if (sessionProfile && sessionProfile.status === 'pending') {
+            } else if (sessionProfile && sessionProfile.status === 'pending' && sessionStorage.getItem('activeSession')) {
                 document.getElementById('pendingApprovalScreen').classList.remove('hidden');
             } else {
                 document.getElementById('authOverlay').classList.remove('hidden');
@@ -643,12 +627,12 @@
                         <td class="px-4 py-3">${data.proUsed || 0}</td>
                         <td class="px-4 py-3 flex gap-2">
                             ${data.status === 'pending' ? `<button onclick="window.approveUser('${data.uid}')" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white text-xs">อนุมัติ</button>` : `<button onclick="window.revokeUser('${data.uid}')" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded text-white text-xs">ระงับ</button>`}
-                            <button onclick="window.updateQuota('${data.uid}')" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white text-xs">Save Quota</button>
+                            <button onclick="window.updateQuota('${data.uid}')" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white text-xs">Save</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
                 });
-            }, (err) => console.error(err));
+            });
         };
 
         window.approveUser = async (uid) => {
@@ -664,7 +648,6 @@
             showToast("อัปเดตโควตาสำเร็จ");
         };
 
-        // --- UI Interactions ---
         document.getElementById('usePalmistryToggle').addEventListener('change', (e) => {
             const uploads = document.getElementById('palmistryUploads');
             if (e.target.checked) {
@@ -685,15 +668,25 @@
 
         // --- Prediction API ---
         const callGemini = async (prompt, imagesB64 = [], usePro = true) => {
-            const apiKey = ""; 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            let apiKey = ""; 
             
+            // ⚠️ ต้องใส่ Gemini API Key ของคุณที่นี่ (เอามาจาก https://aistudio.google.com/)
+            const githubGeminiApiKey = "AIzaSyCFibyy8DsXh2Pm-o__e1JMgJTQQVNhFfY"; 
+            
+            // ตรวจจับว่าถ้ารันบน GitHub จะดึง Key ด้านบนไปใช้
+            if (typeof __firebase_config === 'undefined') {
+                apiKey = githubGeminiApiKey;
+                if (apiKey === "ใส่_GEMINI_API_KEY_ของคุณที่นี่") {
+                    throw new Error("Missing_Gemini_Key");
+                }
+            }
+            
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             const qualityPrompt = usePro 
                 ? "คุณคือปรมาจารย์โหราศาสตร์ขั้นสูงสุด (Deep Research Mode) จงวิเคราะห์อย่างละเอียดลึกซึ้งที่สุด" 
                 : "คุณคือโหราจารย์ (Fast Mode) จงวิเคราะห์ข้อมูลสรุปแบบรวดเร็วและกระชับ";
 
             const finalPrompt = `${qualityPrompt}\n\n${prompt}`;
-            
             const parts = [{ text: finalPrompt }];
             imagesB64.forEach(b64 => parts.push({ inlineData: { mimeType: "image/jpeg", data: b64 } }));
 
@@ -736,6 +729,7 @@
                     const data = await response.json();
                     return JSON.parse(data.candidates[0].content.parts[0].text);
                 } catch (err) {
+                    if (err.message === "Missing_Gemini_Key") throw err; // ปล่อย Error ทันทีถ้าไม่มี Key
                     if (i === 4) throw err;
                     await new Promise(r => setTimeout(r, delay));
                     delay *= 2;
@@ -745,7 +739,6 @@
 
         document.getElementById('astroForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            // ต้องมั่นใจว่า sessionProfile ถูกเซ็ตเรียบร้อยแล้ว
             if (!sessionProfile || sessionProfile.status !== 'approved') return;
 
             const isProMode = (sessionProfile.proUsed || 0) < (sessionProfile.proQuota || 3);
@@ -791,9 +784,7 @@
                 }
             }
 
-            promptBase += `
-                ข้อมูล: ชื่อเล่น: ${sessionProfile.nickname}, เกิด: ${formattedDateStr}, เวลา: ${birthTime} (ท้องถิ่น), ประเทศ: ${birthCountry}, เมือง: ${birthPlace}.
-            `;
+            promptBase += `ข้อมูล: ชื่อเล่น: ${sessionProfile.nickname}, เกิด: ${formattedDateStr}, เวลา: ${birthTime} (ท้องถิ่น), ประเทศ: ${birthCountry}, เมือง: ${birthPlace}.`;
             if (birthLocationMap) promptBase += ` พิกัด: ${birthLocationMap}.`;
             if (customQuestion) promptBase += ` คำถามเจาะจง: "${customQuestion}".`;
 
@@ -802,7 +793,6 @@
                 
                 if (isProMode) {
                     const newUsed = (sessionProfile.proUsed || 0) + 1;
-                    // ใช้ sessionProfile.uid แทน currentUser.uid
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', sessionProfile.uid), { proUsed: newUsed });
                 }
 
@@ -817,14 +807,17 @@
                     timestamp: Date.now() 
                 };
                 
-                // ใช้ sessionProfile.uid ในการจัดเก็บประวัติเพื่อให้ผู้ใช้อ่านข้อมูลตัวเองได้เวลาเปลี่ยนเครื่อง
                 await addDoc(collection(db, 'artifacts', appId, 'users', sessionProfile.uid, 'readings'), currentResult);
 
                 displayResult(currentResult);
                 showToast("การวิเคราะห์เสร็จสมบูรณ์");
             } catch (err) {
                 console.error(err);
-                showToast("เกิดข้อผิดพลาดในการประมวลผล", true);
+                if (err.message === "Missing_Gemini_Key") {
+                    showToast("ข้อผิดพลาด: โปรดใส่ Gemini API Key ในโค้ดก่อนนำไปรันบน GitHub", true);
+                } else {
+                    showToast("เกิดข้อผิดพลาดในการเชื่อมต่อ AI ประมวลผล", true);
+                }
                 document.getElementById('loadingState').classList.add('hidden');
                 document.getElementById('welcomeState').classList.remove('hidden');
             }
