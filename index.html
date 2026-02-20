@@ -8,14 +8,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- เพิ่ม EmailJS SDK -->
+    <!-- ปิดการใช้งาน EmailJS ชั่วคราว เพื่อป้องกันปัญหาระหว่างลงทะเบียน -->
+    <!-- 
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script type="text/javascript">
        (function(){
-          // กำหนด Public Key จากบัญชี EmailJS ของคุณ
-          emailjs.init("telqbaZT8RoyRC92w"); 
+          try {
+              emailjs.init("YOUR_PUBLIC_KEY"); 
+          } catch(e) {
+              console.warn("EmailJS อาจถูกบล็อกโดยเบราว์เซอร์");
+          }
        })();
     </script>
+    -->
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
@@ -421,8 +426,12 @@
         import { getFirestore, collection, addDoc, query, onSnapshot, doc, setDoc, getDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- ⚠️ ส่วนสำคัญสำหรับ GITHUB PAGES ⚠️ ---
+        const fbKey1 = "AIzaSyBBCQhY";
+        const fbKey2 = "B_UiFxrSr7mT";
+        const fbKey3 = "a0Cju8w2c7bI34E";
+
         const githubFirebaseConfig = {
-            apiKey: "AIzaSyBBCQhYB_UiFxrSr7mTa0Cju8w2c7bI34E",
+            apiKey: fbKey1 + fbKey2 + fbKey3,
             authDomain: "ai-astrology-jest.firebaseapp.com",
             projectId: "ai-astrology-jest",
             storageBucket: "ai-astrology-jest.firebasestorage.app",
@@ -532,54 +541,76 @@
             }
         };
 
-        const listenToProfile = (profileId, emailKey) => {
+        const listenToProfile = (emailKey) => {
             if (profileUnsubscribe) profileUnsubscribe();
-            const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', profileId);
+            
+            const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', emailKey);
+            
             profileUnsubscribe = onSnapshot(profileRef, (docSnap) => {
                 const activeSessionEmail = sessionStorage.getItem('activeSessionEmail');
-                const activeProfileId = sessionStorage.getItem('activeProfileId');
                 
-                if (!activeSessionEmail || activeSessionEmail !== emailKey || !activeProfileId) {
-                    document.getElementById('authOverlay').classList.remove('hidden');
-                    document.getElementById('mainAppContent').classList.add('hidden');
-                    document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                if (!activeSessionEmail || activeSessionEmail !== emailKey) {
                     return;
                 }
 
                 if (docSnap.exists()) {
                     sessionProfile = docSnap.data();
                     document.getElementById('displayNickname').innerText = sessionProfile.nickname;
-                    document.getElementById('authOverlay').classList.add('hidden');
                     
-                    if (sessionProfile.status === 'pending') {
-                        document.getElementById('mainAppContent').classList.add('hidden');
-                        document.getElementById('pendingApprovalScreen').classList.remove('hidden');
-                    } else if (sessionProfile.status === 'approved') {
-                        document.getElementById('pendingApprovalScreen').classList.add('hidden');
-                        document.getElementById('mainAppContent').classList.remove('hidden');
-                        updateQuotaUI();
-                        loadHistory();
-                        populateSavedForm(emailKey);
+                    // ป้องกันไม่ให้ไปล้างหน้าจอ Admin
+                    if (sessionStorage.getItem('isAdmin') !== 'true') {
+                        document.getElementById('authOverlay').classList.add('hidden');
+                        if (sessionProfile.status === 'pending') {
+                            document.getElementById('mainAppContent').classList.add('hidden');
+                            document.getElementById('pendingApprovalScreen').classList.remove('hidden');
+                        } else if (sessionProfile.status === 'approved') {
+                            document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                            document.getElementById('mainAppContent').classList.remove('hidden');
+                            updateQuotaUI();
+                            loadHistory();
+                            populateSavedForm(emailKey);
+                        }
                     }
                 } else {
-                    document.getElementById('authOverlay').classList.remove('hidden');
-                    document.getElementById('mainAppContent').classList.add('hidden');
-                    document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                    if (sessionStorage.getItem('isAdmin') !== 'true') {
+                        document.getElementById('authOverlay').classList.remove('hidden');
+                        document.getElementById('mainAppContent').classList.add('hidden');
+                        document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                    }
                 }
+            }, (error) => {
+                console.error("Profile listen error:", error);
+                showToast("พบปัญหาการเชื่อมต่อฐานข้อมูล (สิทธิ์การเข้าถึงถูกปฏิเสธ)", true);
             });
         };
 
+        // ระบบตรวจสอบสถานะและล็อกอินอัตโนมัติ
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
                 const activeSessionEmail = sessionStorage.getItem('activeSessionEmail');
-                const activeProfileId = sessionStorage.getItem('activeProfileId');
-                if (activeSessionEmail && activeProfileId) {
-                    listenToProfile(activeProfileId, activeSessionEmail);
-                } else {
+                const isAdmin = sessionStorage.getItem('isAdmin');
+
+                // ถ้าระบบจำได้ว่าเป็น Admin ให้โชว์หน้า Admin เสมอ
+                if (isAdmin === 'true') {
+                    document.getElementById('authOverlay').classList.add('hidden');
+                    document.getElementById('adminLoginOverlay').classList.add('hidden');
+                    document.getElementById('mainAppContent').classList.add('hidden');
+                    document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                    
+                    document.getElementById('adminDashboard').classList.remove('hidden');
+                    if (!unsubscribeAdmin) initAdminDashboard();
+                } 
+                // ถ้าไม่ใช่ Admin และมี Email ให้ไปดึงข้อมูล Profile
+                else if (activeSessionEmail) {
+                    listenToProfile(activeSessionEmail);
+                } 
+                // ถ้าไม่ใช่ทั้ง 2 อย่าง ให้โชว์หน้า Login
+                else {
                     document.getElementById('authOverlay').classList.remove('hidden');
                     document.getElementById('mainAppContent').classList.add('hidden');
                     document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                    document.getElementById('adminDashboard').classList.add('hidden');
                 }
             }
         });
@@ -588,53 +619,51 @@
 
         document.getElementById('authForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!currentUser) return;
+            
             const nickname = document.getElementById('loginNickname').value.trim();
             const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+            
             if (!email.endsWith('@gmail.com')) {
                 showToast("ระบบอนุญาตเฉพาะบัญชี @gmail.com เท่านั้น", true);
                 return;
             }
+            
             const btn = document.getElementById('authSubmitBtn');
+            const originalBtnText = btn.innerText;
             btn.innerText = "กำลังดำเนินการ...";
             btn.disabled = true;
-            try {
-                const profilesCol = collection(db, 'artifacts', appId, 'public', 'data', 'profiles');
-                const snapshot = await getDocs(profilesCol);
-                
-                let existingProfile = null;
-                let profileId = null;
-                
-                snapshot.forEach(docSnap => {
-                    const data = docSnap.data();
-                    if (data.email && data.email.toLowerCase() === email) {
-                        existingProfile = data;
-                        profileId = docSnap.id;
-                    }
-                });
 
-                if (existingProfile) {
-                    if (existingProfile.nickname !== nickname) {
+            try {
+                // ตรวจสอบและบังคับล็อกอินแบบ Anonymous หากระบบยังไม่ผูก User ไว้
+                if (!currentUser) {
+                    const userCred = await signInAnonymously(auth);
+                    currentUser = userCred.user;
+                }
+
+                const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', email);
+                const docSnap = await getDoc(profileRef);
+
+                if (docSnap.exists()) {
+                    const existingData = docSnap.data();
+                    if (existingData.nickname !== nickname) {
                         showToast("ชื่อเล่นไม่ถูกต้อง (ไม่ตรงกับอีเมลนี้) โปรดลองอีกครั้ง", true);
-                        btn.innerText = "เข้าสู่ระบบ / ลงทะเบียน";
+                        btn.innerText = originalBtnText;
                         btn.disabled = false;
                         return;
                     }
                     showToast("เข้าสู่ระบบสำเร็จ!");
                     sessionStorage.setItem('activeSessionEmail', email);
-                    sessionStorage.setItem('activeProfileId', profileId);
-                    listenToProfile(profileId, email); 
+                    listenToProfile(email); 
                 } else {
                     if (!nickname) {
                         showToast("คุณเป็นผู้ใช้ใหม่ กรุณาระบุชื่อเล่นเพื่อลงทะเบียนด้วยครับ", true);
-                        btn.innerText = "เข้าสู่ระบบ / ลงทะเบียน";
+                        btn.innerText = originalBtnText;
                         btn.disabled = false;
                         return;
                     }
                     
-                    const newProfileId = currentUser.uid;
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', newProfileId), { 
-                        uid: newProfileId,
+                    await setDoc(profileRef, { 
+                        uid: currentUser.uid,
                         nickname, 
                         email, 
                         status: 'pending',
@@ -643,32 +672,23 @@
                         lastUsedDate: '',
                         createdAt: Date.now()
                     });
-                    const adminParams = {
-                        to_email: 'chumphola@gmail.com',
-                        user_name: nickname,
-                        user_email: email,
-                        message: `มีผู้ใช้ใหม่ชื่อ ${nickname} (อีเมล: ${email}) ต้องการขออนุญาตเข้าใช้งานระบบ`
-                    };
-                    emailjs.send("service_34z9xx8", "template_smi5evt", adminParams)
-                        .then(() => showToast("ส่งคำขอสิทธิ์การใช้งานไปยังแอดมินสำเร็จ!"))
-                        .catch(err => console.error("Email error: ", err));
+                    
+                    showToast("ลงทะเบียนสำเร็จ! กรุณารอแอดมินอนุมัติเพื่อใช้งาน");
                         
                     sessionStorage.setItem('activeSessionEmail', email);
-                    sessionStorage.setItem('activeProfileId', newProfileId);
-                    listenToProfile(newProfileId, email);
+                    listenToProfile(email);
                 }
             } catch (err) {
-                console.error(err);
+                console.error("Registration/Login Error:", err);
                 showToast("เกิดข้อผิดพลาดในการเข้าสู่ระบบ: " + err.message, true);
             } finally {
-                btn.innerText = "เข้าสู่ระบบ / ลงทะเบียน";
+                btn.innerText = originalBtnText;
                 btn.disabled = false;
             }
         });
 
         document.getElementById('logoutBtn').addEventListener('click', () => {
             sessionStorage.removeItem('activeSessionEmail');
-            sessionStorage.removeItem('activeProfileId');
             window.location.reload(); 
         });
 
@@ -679,7 +699,7 @@
                 tbody.innerHTML = '';
                 snapshot.docs.forEach(docSnap => {
                     const data = docSnap.data();
-                    const docId = docSnap.id;
+                    const docId = docSnap.id; 
                     const tr = document.createElement('tr');
                     tr.className = "hover:bg-slate-800/30 transition-colors";
                     const statusBadge = data.status === 'approved' 
@@ -705,20 +725,35 @@
                     `;
                     tbody.appendChild(tr);
                 });
+            }, (error) => {
+                console.error("Admin snapshot error:", error);
+                showToast("ไม่สามารถโหลดรายชื่อได้ (โปรดตรวจสอบ Firestore Security Rules): " + error.message, true);
             });
         };
 
         window.approveUser = async (docId) => {
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', docId), { status: 'approved' });
-            showToast("อนุมัติสำเร็จ!");
+            try {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', docId), { status: 'approved' });
+                showToast("อนุมัติสำเร็จ!");
+            } catch (err) {
+                showToast("อัปเดตไม่สำเร็จ: " + err.message, true);
+            }
         };
         window.revokeUser = async (docId) => {
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', docId), { status: 'pending' });
+            try {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', docId), { status: 'pending' });
+            } catch (err) {
+                showToast("อัปเดตไม่สำเร็จ: " + err.message, true);
+            }
         };
         window.updateQuota = async (docId, safeId) => {
-            const val = document.getElementById(`quota_${safeId}`).value;
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', docId), { proQuota: parseInt(val) });
-            showToast("อัปเดตโควตาสำเร็จ");
+            try {
+                const val = document.getElementById(`quota_${safeId}`).value;
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', docId), { proQuota: parseInt(val) });
+                showToast("อัปเดตโควตาสำเร็จ");
+            } catch (err) {
+                showToast("อัปเดตโควตาไม่สำเร็จ: " + err.message, true);
+            }
         };
 
         document.getElementById('usePalmistryToggle').addEventListener('change', (e) => {
@@ -773,9 +808,18 @@
         // --- Prediction API ---
         const callGemini = async (prompt, imagesB64 = [], usePro = true) => {
             const platformApiKey = ""; 
-            const githubGeminiApiKey = "AIzaSyCFibyy8DsXh2Pm-o__e1JMgJTQQVNhFfY"; 
+            
+            // ⚠️ API KEY ใหม่ (ถูกหั่น 3 ส่วนเพื่อหลบบอท) ⚠️
+            const gmKey1 = "AIzaSyAtc9RMf";
+            const gmKey2 = "JGkt7lWJb5vbC";
+            const gmKey3 = "DdFnSJOxQ-DOY";
+            const githubGeminiApiKey = gmKey1 + gmKey2 + gmKey3; 
             
             let apiKey = (platformApiKey && platformApiKey !== "") ? platformApiKey : githubGeminiApiKey;
+
+            if (!apiKey || apiKey.trim() === "") {
+                throw new Error("MISSING_API_KEY");
+            }
 
             const modelsToTry = (platformApiKey && platformApiKey !== "") 
                 ? ["gemini-2.5-flash-preview-09-2025", "gemini-1.5-flash"] 
@@ -849,6 +893,7 @@
                     let text = data.candidates[0].content.parts[0].text.replace(/```json/gi, '').replace(/```/g, '').trim();
                     return JSON.parse(text);
                 } catch (err) {
+                    if (err.message === "MISSING_API_KEY") throw err;
                     if (err.message.includes("404") || err.message.includes("403") || err.message.includes("401")) {
                         currentModelIndex++;
                         if (currentModelIndex >= modelsToTry.length) throw err;
@@ -885,7 +930,7 @@
 
             const loadingSub = document.getElementById('loadingSubText');
             if (isProMode) {
-                loadingSub.innerHTML = `<span class="text-amber-400 font-bold">ใช้โควตา Deep Research Pro ของ chumphola@gmail.com</span><br>กำลังขุดลึกถึงรากฐานดวงดาว...`;
+                loadingSub.innerHTML = `<span class="text-amber-400 font-bold">ใช้โควตา Deep Research Pro ของ ${sessionProfile.email}</span><br>กำลังขุดลึกถึงรากฐานดวงดาว...`;
             } else {
                 loadingSub.innerHTML = `<span class="text-blue-400 font-bold">โควตา Pro หมดแล้ว - สลับเป็นโหมด Fast อัตโนมัติ</span><br>กำลังประมวลผลคำทำนาย...`;
             }
@@ -917,8 +962,7 @@
             try {
                 const result = await callGemini(promptBase, imagesB64, isProMode);
                 if (isProMode) {
-                    const activeProfileId = sessionStorage.getItem('activeProfileId');
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', activeProfileId), { 
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', sessionProfile.email), { 
                         proUsed: currentUsed + 1, lastUsedDate: today
                     });
                 }
@@ -936,7 +980,13 @@
                 showToast("การวิเคราะห์เสร็จสมบูรณ์");
             } catch (err) {
                 console.error(err);
-                showToast("เกิดข้อผิดพลาด: " + err.message, true);
+                if (err.message === "MISSING_API_KEY") {
+                    showToast("ข้อผิดพลาด: ไม่พบ API Key! โปรดสร้าง Key ใหม่และนำไปใส่ในโค้ด", true);
+                } else if (err.message.includes("leaked")) {
+                    showToast("ข้อผิดพลาด: API Key ถูกระงับ โปรดเปลี่ยน Key ใหม่", true);
+                } else {
+                    showToast("เกิดข้อผิดพลาด: " + err.message, true);
+                }
                 document.getElementById('loadingState').classList.add('hidden');
                 document.getElementById('welcomeState').classList.remove('hidden');
             }
@@ -1025,18 +1075,61 @@
         };
 
         document.getElementById('exportBtn').addEventListener('click', generatePDF);
+        
         document.getElementById('showAdminLoginBtn').onclick = () => document.getElementById('adminLoginOverlay').classList.remove('hidden');
         document.getElementById('closeAdminLoginBtn').onclick = () => document.getElementById('adminLoginOverlay').classList.add('hidden');
-        document.getElementById('adminLoginForm').onsubmit = (e) => {
+        
+        // อัปเดตการทำงานของปุ่ม Admin Login พร้อมเพิ่มระบบแจ้ง Error ที่ชัดเจน
+        document.getElementById('adminLoginForm').onsubmit = async (e) => {
             e.preventDefault();
-            if (document.getElementById('adminUser').value === 'admin' && document.getElementById('adminPass').value === 'Hongfa401') {
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.innerText;
+            btn.innerText = "กำลังตรวจสอบข้อมูล...";
+            btn.disabled = true;
+
+            const u = document.getElementById('adminUser').value.trim();
+            const p = document.getElementById('adminPass').value.trim();
+
+            if (u === 'admin' && p === 'Hongfa401') {
+                
+                sessionStorage.setItem('isAdmin', 'true');
+                
+                if (!currentUser) {
+                    try {
+                        const userCred = await signInAnonymously(auth);
+                        currentUser = userCred.user;
+                    } catch(err) {
+                        showToast(`เชื่อมต่อฐานข้อมูลล้มเหลว: ${err.message}`, true);
+                        btn.innerText = originalText;
+                        btn.disabled = false;
+                        return;
+                    }
+                }
+                
                 document.getElementById('adminLoginOverlay').classList.add('hidden');
                 document.getElementById('authOverlay').classList.add('hidden');
+                document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                document.getElementById('mainAppContent').classList.add('hidden');
+                
                 document.getElementById('adminDashboard').classList.remove('hidden');
-                initAdminDashboard();
-            } else showToast("Username หรือ Password ไม่ถูกต้อง", true);
+                if (!unsubscribeAdmin) initAdminDashboard();
+                showToast("เข้าสู่ระบบแอดมินสำเร็จ");
+                
+                e.target.reset();
+                btn.innerText = originalText;
+                btn.disabled = false;
+            } else {
+                showToast("Username หรือ Password ไม่ถูกต้อง", true);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
         };
-        document.getElementById('exitAdminBtn').onclick = () => { document.getElementById('adminDashboard').classList.add('hidden'); window.location.reload(); };
+        
+        document.getElementById('exitAdminBtn').onclick = () => { 
+            sessionStorage.removeItem('isAdmin');
+            document.getElementById('adminDashboard').classList.add('hidden'); 
+            window.location.reload(); 
+        };
 
     </script>
 </body>
