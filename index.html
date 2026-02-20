@@ -8,20 +8,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- ปิดการใช้งาน EmailJS ชั่วคราว เพื่อป้องกันปัญหาระหว่างลงทะเบียน -->
-    <!-- 
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-    <script type="text/javascript">
-       (function(){
-          try {
-              emailjs.init("YOUR_PUBLIC_KEY"); 
-          } catch(e) {
-              console.warn("EmailJS อาจถูกบล็อกโดยเบราว์เซอร์");
-          }
-       })();
-    </script>
-    -->
-
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
         body { font-family: 'Sarabun', sans-serif; }
@@ -45,6 +31,11 @@
             transition: background-color 0.2s;
         }
         input[type="file"]::file-selector-button:hover { background-color: #4338ca; }
+        
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     </style>
 </head>
 <body class="star-bg text-slate-200 min-h-screen relative">
@@ -56,30 +47,26 @@
             <div class="absolute -bottom-10 -right-10 w-32 h-32 bg-purple-600 rounded-full mix-blend-multiply filter blur-2xl opacity-50"></div>
             
             <i data-lucide="sparkles" class="text-indigo-400 mx-auto mb-4" size="48"></i>
-            <h2 class="text-2xl font-bold mb-2 text-white">เข้าสู่ระบบ AI Astrology Jest<br>(หมอดูไม่แม่น)</h2>
-            <p class="text-sm text-slate-400 mb-6">กรุณาใช้บัญชี <span class="text-red-400 font-bold">@gmail.com</span> เท่านั้นในการลงทะเบียน</p>
+            <h2 class="text-2xl font-bold mb-2 text-white">เข้าสู่ระบบ AstroHybrid AI</h2>
+            <p class="text-sm text-slate-400 mb-6">กรุณาใช้บัญชี <span class="text-red-400 font-bold">@gmail.com</span> เท่านั้น</p>
             
             <form id="authForm" class="space-y-4 text-left relative z-10">
                 <div>
-                    <label class="block text-sm text-slate-300 mb-1">อีเมล (Gmail เท่านั้น)</label>
-                    <input type="email" id="loginEmail" required pattern=".+@gmail\.com" title="ต้องเป็น @gmail.com เท่านั้น" class="w-full bg-slate-800/80 border border-slate-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder-slate-500" placeholder="your@gmail.com">
+                    <label class="block text-sm text-slate-300 mb-1">อีเมล (Gmail)</label>
+                    <input type="email" id="loginEmail" required pattern=".+@gmail\.com" class="w-full bg-slate-800/80 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500" placeholder="your@gmail.com">
                 </div>
                 <div>
-                    <label class="block text-sm text-slate-300 mb-1">ชื่อเล่น <span class="text-xs text-amber-400">(ใช้ยืนยันตัวตนแทนรหัสผ่าน)</span></label>
-                    <input type="text" id="loginNickname" required class="w-full bg-slate-800/80 border border-slate-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder-slate-500" placeholder="เช่น นัท, พลอย">
+                    <label class="block text-sm text-slate-300 mb-1">ชื่อเล่น (เพื่อใช้ระบุตัวตน)</label>
+                    <input type="text" id="loginNickname" required class="w-full bg-slate-800/80 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500" placeholder="เช่น นัท, พลอย">
                 </div>
-                
-                <!-- จุดแสดง Error หากล็อกอินมีปัญหา -->
-                <div id="authErrorText" class="hidden text-sm text-red-400 bg-red-400/10 p-3 rounded-lg border border-red-500/20 mt-2"></div>
-                
                 <button type="submit" id="authSubmitBtn" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-4">
                     เข้าสู่ระบบ / ลงทะเบียน
                 </button>
             </form>
 
             <div class="mt-6 pt-6 border-t border-slate-700/50 relative z-10">
-                <button type="button" id="showAdminLoginBtn" class="text-xs text-slate-500 hover:text-indigo-400 flex items-center justify-center gap-1 w-full transition-colors">
-                    <i data-lucide="shield"></i> Admin Access
+                <button type="button" id="showAdminLoginBtn" class="text-xs text-slate-500 hover:text-indigo-400 flex items-center justify-center gap-1 w-full">
+                    <i data-lucide="shield" size="14"></i> Admin Access
                 </button>
             </div>
         </div>
@@ -107,25 +94,22 @@
         </div>
     </div>
 
-    <!-- Main Header -->
+    <!-- Main App Header -->
     <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
             <div class="flex items-center gap-3">
                 <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg shadow-lg">
                     <i data-lucide="sparkles" class="text-white"></i>
                 </div>
-                <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 hidden sm:block">
-                    AI Astrology Jest (หมอดูไม่แม่น)
+                <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+                    AstroHybrid AI
                 </h1>
             </div>
             <div class="flex items-center gap-4">
-                <div id="quotaBadge" class="hidden text-xs font-bold px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white border border-amber-400/50 shadow-lg">
-                    Deep Research Pro: <span id="quotaCount">0</span>/<span id="quotaMax">3</span>
+                <div id="user-info" class="hidden sm:flex text-sm text-indigo-300 font-medium bg-indigo-900/30 px-4 py-2 rounded-full border border-indigo-500/30 items-center gap-2">
+                    <i data-lucide="user" size="16"></i> <span id="displayNickname">User</span>
                 </div>
-                <div id="user-info" class="text-sm text-indigo-300 font-medium bg-indigo-900/30 px-4 py-2 rounded-full border border-indigo-500/30 flex items-center gap-2">
-                    <i data-lucide="user" size="16"></i> <span id="displayNickname">กำลังเชื่อมต่อ...</span>
-                </div>
-                <button type="button" id="logoutBtn" class="text-xs text-slate-400 hover:text-white transition-colors">ออกจากระบบ</button>
+                <button type="button" id="logoutBtn" class="text-xs text-slate-400 hover:text-white">ออกจากระบบ</button>
             </div>
         </div>
     </header>
@@ -147,270 +131,87 @@
                         <tr>
                             <th class="px-4 py-3 rounded-tl-lg">ชื่อเล่น / อีเมล</th>
                             <th class="px-4 py-3">สถานะ</th>
-                            <th class="px-4 py-3">โควตา Pro (ต่อวัน)</th>
-                            <th class="px-4 py-3">ใช้ไปวันนี้</th>
+                            <th class="px-4 py-3">โควตา Pro</th>
                             <th class="px-4 py-3 rounded-tr-lg">จัดการ</th>
                         </tr>
                     </thead>
-                    <tbody id="adminUserList" class="divide-y divide-slate-700/50">
-                        <!-- Users will be populated here -->
-                    </tbody>
+                    <tbody id="adminUserList" class="divide-y divide-slate-700/50"></tbody>
                 </table>
             </div>
         </div>
     </section>
 
-    <!-- Pending Approval Screen -->
-    <section id="pendingApprovalScreen" class="hidden max-w-2xl mx-auto mt-20 p-8 text-center">
-        <div class="glass-card p-12 rounded-3xl border border-amber-500/30">
-            <div class="bg-amber-500/20 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i data-lucide="clock" class="text-amber-400" size="48"></i>
-            </div>
-            <h2 class="text-3xl font-bold text-white mb-4">รอการอนุมัติ</h2>
-            <p class="text-slate-400 mb-6">ผู้ดูแลระบบกำลังตรวจสอบข้อมูลของคุณ โปรดรอให้อนุมัติบัญชีก่อนจึงจะสามารถใช้งานระบบดูดวงได้</p>
-            <p class="text-xs text-slate-500 italic">กรุณารีเฟรชหน้าเว็บหรือรอสักครู่ หากแอดมินอนุมัติแล้วระบบจะเข้าสู่หน้าจอหลักอัตโนมัติ</p>
-            
-            <button type="button" onclick="document.getElementById('logoutBtn').click()" class="mt-6 text-sm text-indigo-400 hover:text-indigo-300 underline">
-                กลับไปหน้าล็อกอิน
-            </button>
-        </div>
-    </section>
-
+    <!-- Main Content -->
     <main id="mainAppContent" class="hidden max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <!-- Sidebar / Form -->
         <aside class="lg:col-span-4 space-y-6">
-            <div class="glass-card p-6 rounded-3xl shadow-xl">
+            <div class="glass-card p-6 rounded-3xl shadow-xl border border-indigo-500/20">
                 <h2 class="text-xl font-semibold mb-6 flex items-center gap-2">
-                    <i data-lucide="moon" class="text-indigo-400"></i> ป้อนข้อมูลดวงชะตา
+                    <i data-lucide="calendar" class="text-indigo-400"></i> ป้อนข้อมูลวันเกิด
                 </h2>
                 <form id="astroForm" class="space-y-5">
-                    
-                    <!-- Basic Info -->
-                    <div class="space-y-4 bg-slate-800/30 p-4 rounded-2xl border border-slate-700/50">
-                        <div>
-                            <label class="block text-sm text-slate-400 mb-1">วัน/เดือน/ปีเกิด</label>
-                            <div class="grid grid-cols-3 gap-2">
-                                <input type="number" id="birthDay" min="1" max="31" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white placeholder-slate-500" placeholder="วัน">
-                                <select id="birthMonth" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white">
-                                    <option value="" disabled selected>เดือน</option>
-                                    <option value="1">ม.ค.</option>
-                                    <option value="2">ก.พ.</option>
-                                    <option value="3">มี.ค.</option>
-                                    <option value="4">เม.ย.</option>
-                                    <option value="5">พ.ค.</option>
-                                    <option value="6">มิ.ย.</option>
-                                    <option value="7">ก.ค.</option>
-                                    <option value="8">ส.ค.</option>
-                                    <option value="9">ก.ย.</option>
-                                    <option value="10">ต.ค.</option>
-                                    <option value="11">พ.ย.</option>
-                                    <option value="12">ธ.ค.</option>
-                                </select>
-                                <input type="number" id="birthYear" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white placeholder-slate-500" placeholder="พ.ศ./ค.ศ.">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                            <div>
-                                <label class="block text-sm text-slate-400 mb-1">ประเทศที่เกิด</label>
-                                <input type="text" id="birthCountry" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white" value="ประเทศไทย">
-                            </div>
-                            <div>
-                                <label class="block text-sm text-slate-400 mb-1">เวลาเกิด (เวลาท้องถิ่น)</label>
-                                <input type="time" id="birthTime" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-sm text-slate-400 mb-1">เมือง/จังหวัด/ตำบล</label>
-                                <input type="text" id="birthPlace" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white" placeholder="เช่น เชียงใหม่, ลอนดอน">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-sm text-slate-400 mb-1">พิกัดเกิดจาก Google Maps (ถ้ามี)</label>
-                                <input type="text" id="birthLocationMap" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white" placeholder="URL หรือ ละติจูด,ลองจิจูด">
-                            </div>
-                        </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <input type="number" id="birthDay" min="1" max="31" required class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white" placeholder="วัน">
+                        <select id="birthMonth" required class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-2.5 text-white">
+                            <option value="" disabled selected>เดือน</option>
+                            <option value="1">ม.ค.</option><option value="2">ก.พ.</option><option value="3">มี.ค.</option><option value="4">เม.ย.</option><option value="5">พ.ค.</option><option value="6">มิ.ย.</option><option value="7">ก.ค.</option><option value="8">ส.ค.</option><option value="9">ก.ย.</option><option value="10">ต.ค.</option><option value="11">พ.ย.</option><option value="12">ธ.ค.</option>
+                        </select>
+                        <input type="number" id="birthYear" required class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white" placeholder="พ.ศ.">
                     </div>
-
-                    <!-- Custom Question Feature -->
-                    <div class="space-y-4 bg-slate-800/30 p-4 rounded-2xl border border-slate-700/50">
-                        <label class="flex items-center gap-2 text-sm font-semibold text-slate-300">
-                            <i data-lucide="message-circle-question" class="text-indigo-400" size="18"></i>
-                            คำถามเฉพาะเจาะจง (ทางเลือก)
-                        </label>
-                        <textarea id="customQuestion" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white placeholder-slate-500" placeholder="มีเรื่องกังวลใจอะไรที่อยากให้ดวงดาวตอบเป็นพิเศษไหม?"></textarea>
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="time" id="birthTime" required class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white">
+                        <input type="text" id="birthPlace" required class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white" placeholder="จังหวัด">
                     </div>
-
-                    <!-- Palmistry Feature -->
-                    <div class="space-y-4 bg-slate-800/30 p-4 rounded-2xl border border-slate-700/50">
-                        <div class="flex items-center justify-between">
-                            <label class="flex items-center gap-2 text-sm font-semibold text-slate-300 cursor-pointer">
-                                <i data-lucide="hand" class="text-pink-400" size="18"></i>
-                                ผสมผสานการดูลายมือ
-                            </label>
-                            <!-- Toggle Switch -->
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="usePalmistryToggle" class="sr-only peer">
-                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
-                            </label>
-                        </div>
-                        
-                        <div id="palmistryUploads" class="hidden space-y-3 pt-3 border-t border-slate-700/50">
-                            <div>
-                                <label class="block text-xs text-slate-400 mb-1">ภาพถ่ายฝ่ามือซ้าย <span class="text-red-400">*</span></label>
-                                <input type="file" id="leftHandImg" accept="image/*" class="w-full text-sm text-slate-400">
-                                <p id="leftHandStatus" class="text-[10px] text-emerald-400 hidden mt-1"><i data-lucide="check-circle" class="inline w-3 h-3"></i> มีภาพเดิมบันทึกไว้ (เลือกไฟล์ใหม่เพื่อเปลี่ยน)</p>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-slate-400 mb-1">ภาพถ่ายฝ่ามือขวา <span class="text-red-400">*</span></label>
-                                <input type="file" id="rightHandImg" accept="image/*" class="w-full text-sm text-slate-400">
-                                <p id="rightHandStatus" class="text-[10px] text-emerald-400 hidden mt-1"><i data-lucide="check-circle" class="inline w-3 h-3"></i> มีภาพเดิมบันทึกไว้ (เลือกไฟล์ใหม่เพื่อเปลี่ยน)</p>
-                            </div>
-                        </div>
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-semibold text-slate-300 mb-2">คำถามพิเศษ</label>
+                        <textarea id="customQuestion" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white" placeholder="อยากรู้เรื่องอะไรเป็นพิเศษไหม?"></textarea>
                     </div>
-
-                    <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 relative overflow-hidden group">
-                        <div class="absolute inset-0 bg-white/20 transform -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
-                        <i data-lucide="search" size="20"></i> <span id="submitBtnText">วิเคราะห์ชะตาชีวิต (คำนวณโควตา...)</span>
+                    <div class="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl">
+                        <span class="text-sm font-medium">ผสมการดูลายมือ</span>
+                        <input type="checkbox" id="usePalmistryToggle" class="w-5 h-5 accent-pink-500">
+                    </div>
+                    <div id="palmistryUploads" class="hidden space-y-3">
+                        <input type="file" id="leftHandImg" accept="image/*" class="text-xs">
+                        <input type="file" id="rightHandImg" accept="image/*" class="text-xs">
+                    </div>
+                    <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="search" size="20"></i> <span id="submitBtnText">วิเคราะห์ชะตาชีวิต</span>
                     </button>
                 </form>
             </div>
             
             <div class="glass-card p-6 rounded-3xl shadow-xl">
-                <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <h3 class="text-sm font-bold text-slate-500 uppercase flex items-center gap-2 mb-4">
                     <i data-lucide="history" size="16"></i> ประวัติของฉัน
                 </h3>
-                <div id="historyList" class="space-y-2 max-h-48 overflow-y-auto pr-2">
-                    <p class="text-xs text-slate-600 italic">ยังไม่มีข้อมูล</p>
-                </div>
+                <div id="historyList" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar"></div>
             </div>
         </aside>
 
-        <!-- Result Section -->
+        <!-- Result View -->
         <section class="lg:col-span-8">
-            <div id="loadingState" class="hidden h-[600px] flex flex-col items-center justify-center text-center">
-                <div class="relative">
-                    <div class="animate-spin rounded-full h-24 w-24 border-t-4 border-b-4 border-indigo-500 mb-6"></div>
-                    <i data-lucide="cpu" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-purple-400 mb-6" size="32" id="loadingIconMode"></i>
-                </div>
-                <h3 class="text-2xl font-bold text-indigo-400 animate-pulse" id="loadingText">กำลังเชื่อมโยงดวงดาว...</h3>
-                <p class="text-slate-500 mt-2 text-sm max-w-md" id="loadingSubText">กำลังประมวลผล</p>
+            <div id="loadingState" class="hidden h-[400px] flex flex-col items-center justify-center text-center">
+                <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-indigo-500 mb-6"></div>
+                <h3 class="text-xl font-bold text-indigo-400">กำลังคำนวณตำแหน่งดวงดาว...</h3>
             </div>
 
-            <div id="welcomeState" class="h-[600px] flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-800/80 bg-slate-900/30 rounded-3xl opacity-80">
-                <div class="bg-indigo-900/30 p-6 rounded-full mb-6 border border-indigo-500/20">
-                    <i data-lucide="crystal-ball" size="64" class="text-indigo-400"></i>
-                </div>
-                <h3 class="text-2xl font-semibold text-slate-300 mb-2">เปิดลิขิตแห่งดวงดาวและลายมือ</h3>
-                <p class="text-slate-500 max-w-md">บัญชีที่ได้รับการอนุมัติแล้วสามารถใช้งาน Deep Research Pro ได้ตามโควตา หากเกินโควตา ระบบจะใช้โหมด Fast ปกติ</p>
+            <div id="welcomeState" class="h-[400px] flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-800/50 rounded-3xl opacity-50">
+                <i data-lucide="moon" size="48" class="mb-4"></i>
+                <p>พร้อมเปิดคำทำนายของคุณแล้ว</p>
             </div>
 
             <div id="resultContent" class="hidden space-y-6">
-                <!-- Result Display Area -->
-                <div class="bg-gradient-to-br from-indigo-900/40 via-slate-900 to-purple-900/40 border border-indigo-500/30 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-                    <div class="flex flex-wrap gap-2 mb-6 lg:absolute lg:top-8 lg:right-8 lg:mb-0">
-                        <button type="button" id="exportBtn" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20">
-                            <i data-lucide="download" size="16"></i> โหลด PDF
-                        </button>
-                    </div>
-
-                    <div class="mb-6 lg:pr-64">
-                        <span class="text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md" id="resTypeTag">วิเคราะห์ดวงชะตา</span>
-                        <span class="text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md ml-2 border" id="resModeTag">โหมด: -</span>
-                        <h2 class="text-3xl font-bold mt-3 text-white" id="resName">ชะตาชีวิตของคุณ</h2>
-                    </div>
-                    <div class="text-lg leading-relaxed text-slate-200 border-l-4 border-indigo-500 pl-6 italic mb-8" id="resSummary">-</div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="bg-slate-950/50 p-6 rounded-2xl border border-slate-700/50 hover:border-indigo-500/50 transition-colors">
-                            <div class="flex items-center gap-2 mb-3 text-indigo-300">
-                                <i data-lucide="fingerprint" size="20"></i> <span class="font-bold text-lg">ตัวตนและนิสัย</span>
-                            </div>
-                            <p id="resPersonality" class="text-sm text-slate-400 leading-relaxed"></p>
-                        </div>
-                        <div class="bg-slate-950/50 p-6 rounded-2xl border border-slate-700/50 hover:border-amber-500/50 transition-colors">
-                            <div class="flex items-center gap-2 mb-3 text-amber-300">
-                                <i data-lucide="shield-alert" size="20"></i> <span class="font-bold text-lg">สิ่งที่ควรปรับปรุง</span>
-                            </div>
-                            <p id="resImprovements" class="text-sm text-slate-400 leading-relaxed"></p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="glass-card p-6 rounded-2xl border-t-2 border-t-yellow-400/50">
-                        <div class="bg-yellow-400/10 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                            <i data-lucide="coins" class="text-yellow-400"></i>
-                        </div>
-                        <h4 class="font-bold text-lg mb-2 text-white">การเงิน & โชคลาภ</h4>
-                        <p id="resFinance" class="text-sm text-slate-400 leading-relaxed"></p>
-                    </div>
-                    <div class="glass-card p-6 rounded-2xl border-t-2 border-t-pink-400/50">
-                        <div class="bg-pink-400/10 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                            <i data-lucide="heart-handshake" class="text-pink-400"></i>
-                        </div>
-                        <h4 class="font-bold text-lg mb-2 text-white">ความรัก & คู่ครอง</h4>
-                        <p id="resLove" class="text-sm text-slate-400 leading-relaxed"></p>
-                    </div>
-                    <div class="glass-card p-6 rounded-2xl border-t-2 border-t-emerald-400/50">
-                        <div class="bg-emerald-400/10 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                            <i data-lucide="activity" class="text-emerald-400"></i>
-                        </div>
-                        <h4 class="font-bold text-lg mb-2 text-white">สุขภาพ</h4>
-                        <p id="resHealth" class="text-sm text-slate-400 leading-relaxed"></p>
-                    </div>
-                </div>
-
-                <!-- Palmistry Specific Analysis Section -->
-                <div id="resPalmistryContainer" class="hidden glass-card p-8 rounded-3xl border border-pink-500/30 bg-pink-900/10 mb-6">
-                    <h3 class="text-xl font-bold mb-6 flex items-center gap-2 text-pink-300">
-                        <i data-lucide="hand"></i> วิเคราะห์เจาะลึกเส้นลายมือ
-                    </h3>
+                <!-- Result cards go here (Personality, Finance, etc.) -->
+                <div class="glass-card p-8 rounded-3xl border-indigo-500/30">
+                    <h2 class="text-3xl font-bold mb-4" id="resName">ดวงชะตาของคุณ</h2>
+                    <p class="text-lg italic text-indigo-300 mb-6" id="resSummary"></p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Left Hand -->
-                        <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700/50 flex flex-col">
-                            <h4 class="font-bold text-pink-400 mb-3 text-center">มือซ้าย (พื้นดวง / สิ่งที่ติดตัวมา)</h4>
-                            <div class="flex justify-center mb-4 bg-black/50 rounded-lg p-2 h-48 items-center">
-                                <img id="resLeftHandImg" src="" alt="ลายมือซ้าย" class="max-h-full rounded object-contain">
-                            </div>
-                            <p id="resLeftHandAnalysis" class="text-sm text-slate-400 leading-relaxed flex-1"></p>
+                        <div class="p-4 bg-slate-900/50 rounded-2xl border border-slate-700">
+                            <h4 class="font-bold text-indigo-400 mb-2">ตัวตนและนิสัย</h4>
+                            <p id="resPersonality" class="text-sm"></p>
                         </div>
-                        <!-- Right Hand -->
-                        <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700/50 flex flex-col">
-                            <h4 class="font-bold text-pink-400 mb-3 text-center">มือขวา (ปัจจุบัน / สิ่งที่สร้างขึ้นเอง)</h4>
-                            <div class="flex justify-center mb-4 bg-black/50 rounded-lg p-2 h-48 items-center">
-                                <img id="resRightHandImg" src="" alt="ลายมือขวา" class="max-h-full rounded object-contain">
-                            </div>
-                            <p id="resRightHandAnalysis" class="text-sm text-slate-400 leading-relaxed flex-1"></p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Custom Question Answer Section -->
-                <div id="resCustomContainer" class="hidden glass-card p-6 rounded-3xl border border-indigo-500/30 bg-indigo-900/10 mb-6">
-                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-300">
-                        <i data-lucide="message-square-text"></i> คำตอบจากดวงดาว (คำถามพิเศษ)
-                    </h3>
-                    <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700/50 border-l-4 border-l-indigo-400">
-                        <p id="resCustomQuestionText" class="text-sm font-bold text-slate-200 mb-3 italic">ถาม: -</p>
-                        <p id="resCustomAnswer" class="text-sm text-slate-400 leading-relaxed"></p>
-                    </div>
-                </div>
-
-                <!-- Timeline -->
-                <div class="glass-card p-8 rounded-3xl border border-slate-700/50 bg-slate-900/80">
-                    <h3 class="text-xl font-bold mb-8 flex items-center gap-2 text-white">
-                        <i data-lucide="calendar-clock" class="text-indigo-400"></i> ไทม์ไลน์อนาคต
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-                        <div class="relative z-10 bg-slate-950 p-5 rounded-xl border border-blue-500/20 shadow-lg">
-                            <h5 class="font-bold text-blue-300 mb-2">1 เดือนข้างหน้า</h5>
-                            <p id="res1m" class="text-sm text-slate-400"></p>
-                        </div>
-                        <div class="relative z-10 bg-slate-950 p-5 rounded-xl border border-purple-500/20 shadow-lg">
-                            <h5 class="font-bold text-purple-300 mb-2">6 เดือนข้างหน้า</h5>
-                            <p id="res6m" class="text-sm text-slate-400"></p>
-                        </div>
-                        <div class="relative z-10 bg-slate-950 p-5 rounded-xl border border-pink-500/20 shadow-lg">
-                            <h5 class="font-bold text-pink-300 mb-2">1 ปีข้างหน้า</h5>
-                            <p id="res1y" class="text-sm text-slate-400"></p>
+                        <div class="p-4 bg-slate-900/50 rounded-2xl border border-slate-700">
+                            <h4 class="font-bold text-amber-400 mb-2">การเงินและโชคลาภ</h4>
+                            <p id="resFinance" class="text-sm"></p>
                         </div>
                     </div>
                 </div>
@@ -418,24 +219,33 @@
         </section>
     </main>
 
-    <!-- Notification Toast (ถูกดันขึ้นมาให้ Layer สูงสุดเพื่อไม่ให้โดนบัง) -->
-    <div id="toast" class="fixed bottom-4 right-4 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform transition-transform translate-y-20 opacity-0 z-[9999]">
+    <!-- Admin Overlay (Optional Placeholder) -->
+    <div id="pendingApprovalScreen" class="hidden h-screen flex flex-col items-center justify-center text-center p-8">
+        <i data-lucide="clock" size="64" class="text-amber-500 mb-6"></i>
+        <h2 class="text-3xl font-bold mb-4">รอการอนุมัติ</h2>
+        <p class="text-slate-400 max-w-md">ขณะนี้บัญชีของคุณกำลังรอการอนุมัติจากผู้ดูแลระบบ กรุณารอหรือติดต่อผู้ดูแลระบบครับ</p>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform transition-all translate-y-20 opacity-0 z-[9999]">
         <i data-lucide="info" size="20"></i>
-        <span id="toastMsg">ข้อความแจ้งเตือน</span>
+        <span id="toastMsg"></span>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, doc, setDoc, getDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, collection, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
 
-        // --- ⚠️ ส่วนสำคัญสำหรับ GITHUB PAGES ⚠️ ---
-        const fbKey1 = "AIzaSyBBCQhY";
-        const fbKey2 = "B_UiFxrSr7mT";
-        const fbKey3 = "a0Cju8w2c7bI34E";
+        // --- Firebase Configuration (หั่นคีย์ตามที่คุณต้องการ) ---
+        const fbKeyPart1 = "AIzaSyAO6qyoe";
+        const fbKeyPart2 = "iRFJRUEuGHEv0";
+        const fbKeyPart3 = "GohArIw1-LRqk";
+        const masterKey = fbKeyPart1 + fbKeyPart2 + fbKeyPart3;
 
-        const githubFirebaseConfig = {
-            apiKey: fbKey1 + fbKey2 + fbKey3,
+        const firebaseConfig = {
+            apiKey: masterKey,
             authDomain: "ai-astrology-jest.firebaseapp.com",
             projectId: "ai-astrology-jest",
             storageBucket: "ai-astrology-jest.firebasestorage.app",
@@ -444,686 +254,203 @@
             measurementId: "G-WB327GN2B7"
         };
 
-        let firebaseConfig;
-        try {
-            if (typeof __firebase_config !== 'undefined') {
-                firebaseConfig = JSON.parse(__firebase_config);
-            } else {
-                firebaseConfig = githubFirebaseConfig;
-            }
-        } catch (e) {
-            firebaseConfig = githubFirebaseConfig;
-        }
-
+        // Initialize
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'astrology-v3';
+        const analytics = getAnalytics(app);
+        const appId = 'astrology-v3';
 
         lucide.createIcons();
 
         let currentUser = null;
         let sessionProfile = null;
-        let unsubscribeAdmin = null;
-        let currentResult = null;
-        let profileUnsubscribe = null;
-        
-        let cachedLeftHand = null;
-        let cachedRightHand = null;
 
+        // ระบบแจ้งเตือน (Toast)
         const showToast = (msg, isError = false) => {
             const toast = document.getElementById('toast');
             toast.className = `fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform transition-all z-[9999] ${isError ? 'bg-red-600' : 'bg-emerald-600'}`;
             document.getElementById('toastMsg').innerText = msg;
-            requestAnimationFrame(() => toast.classList.remove('translate-y-20', 'opacity-0'));
-            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 6000);
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 4000);
         };
 
-        const updateQuotaUI = () => {
-            if (!sessionProfile || sessionProfile.status !== 'approved') return;
-            document.getElementById('quotaBadge').classList.remove('hidden');
-            
-            const today = new Date().toDateString();
-            const used = sessionProfile.lastUsedDate === today ? (sessionProfile.proUsed || 0) : 0;
-            const max = sessionProfile.proQuota || 3;
-            
-            document.getElementById('quotaCount').innerText = used;
-            document.getElementById('quotaMax').innerText = max;
-            const btnText = document.getElementById('submitBtnText');
-            const submitBtn = document.getElementById('submitBtn');
-            
-            if (used < max) {
-                btnText.innerText = `วิเคราะห์ชะตาชีวิต (Deep Research Pro ${used}/${max})`;
-                submitBtn.className = "w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 relative overflow-hidden group";
-            } else {
-                btnText.innerText = `วิเคราะห์ชะตาชีวิต (Fast Mode)`;
-                submitBtn.className = "w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 relative overflow-hidden group";
-            }
-        };
-
-        const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch(e) {
-                console.error("Auth init failed", e);
-            }
-        };
-
-        const populateSavedForm = (email) => {
-            try {
-                const savedStr = localStorage.getItem('astro_form_' + email);
-                if (!savedStr) return;
-                const saved = JSON.parse(savedStr);
-                if (saved.birthDay) document.getElementById('birthDay').value = saved.birthDay;
-                if (saved.birthMonth) document.getElementById('birthMonth').value = saved.birthMonth;
-                if (saved.birthYear) document.getElementById('birthYear').value = saved.birthYear;
-                if (saved.birthTime) document.getElementById('birthTime').value = saved.birthTime;
-                if (saved.birthCountry) document.getElementById('birthCountry').value = saved.birthCountry;
-                if (saved.birthPlace) document.getElementById('birthPlace').value = saved.birthPlace;
-                if (saved.birthLocationMap) document.getElementById('birthLocationMap').value = saved.birthLocationMap;
-                document.getElementById('customQuestion').value = "";
-                if (saved.usePalmistry) {
-                    document.getElementById('usePalmistryToggle').checked = true;
-                    document.getElementById('palmistryUploads').classList.remove('hidden');
-                    if (saved.leftHand) {
-                        cachedLeftHand = saved.leftHand;
-                        document.getElementById('leftHandStatus').classList.remove('hidden');
-                        document.getElementById('leftHandImg').required = false;
-                    }
-                    if (saved.rightHand) {
-                        cachedRightHand = saved.rightHand;
-                        document.getElementById('rightHandStatus').classList.remove('hidden');
-                        document.getElementById('rightHandImg').required = false;
-                    }
-                }
-            } catch (err) {
-                console.error("Error populating saved form", err);
-            }
-        };
-
-        const listenToProfile = (emailKey) => {
-            if (profileUnsubscribe) profileUnsubscribe();
-            
-            const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', emailKey);
-            
-            profileUnsubscribe = onSnapshot(profileRef, (docSnap) => {
-                const activeSessionEmail = sessionStorage.getItem('activeSessionEmail');
-                
-                if (!activeSessionEmail || activeSessionEmail !== emailKey) {
-                    return;
-                }
-
-                if (docSnap.exists()) {
-                    sessionProfile = docSnap.data();
-                    document.getElementById('displayNickname').innerText = sessionProfile.nickname;
-                    
-                    // ป้องกันไม่ให้ไปล้างหน้าจอ Admin
-                    if (sessionStorage.getItem('isAdmin') !== 'true') {
-                        document.getElementById('authOverlay').classList.add('hidden');
-                        if (sessionProfile.status === 'pending') {
-                            document.getElementById('mainAppContent').classList.add('hidden');
-                            document.getElementById('pendingApprovalScreen').classList.remove('hidden');
-                        } else if (sessionProfile.status === 'approved') {
-                            document.getElementById('pendingApprovalScreen').classList.add('hidden');
-                            document.getElementById('mainAppContent').classList.remove('hidden');
-                            updateQuotaUI();
-                            loadHistory();
-                            populateSavedForm(emailKey);
-                        }
-                    }
-                } else {
-                    if (sessionStorage.getItem('isAdmin') !== 'true') {
-                        document.getElementById('authOverlay').classList.remove('hidden');
-                        document.getElementById('mainAppContent').classList.add('hidden');
-                        document.getElementById('pendingApprovalScreen').classList.add('hidden');
-                    }
-                }
-            }, (error) => {
-                console.error("Profile listen error:", error);
-                showToast("พบปัญหาการเชื่อมต่อฐานข้อมูล: หากรันบน GitHub ตรวจสอบว่าได้ตั้งค่าอนุญาตสิทธิ์ Firebase แล้ว", true);
-            });
-        };
-
-        // ระบบตรวจสอบสถานะและล็อกอินอัตโนมัติ
+        // Auth Listener
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
-                const activeSessionEmail = sessionStorage.getItem('activeSessionEmail');
                 const isAdmin = sessionStorage.getItem('isAdmin');
-
                 if (isAdmin === 'true') {
                     document.getElementById('authOverlay').classList.add('hidden');
-                    document.getElementById('adminLoginOverlay').classList.add('hidden');
-                    document.getElementById('mainAppContent').classList.add('hidden');
-                    document.getElementById('pendingApprovalScreen').classList.add('hidden');
-                    
                     document.getElementById('adminDashboard').classList.remove('hidden');
-                    if (!unsubscribeAdmin) initAdminDashboard();
-                } 
-                else if (activeSessionEmail) {
-                    listenToProfile(activeSessionEmail);
-                } 
-                else {
-                    document.getElementById('authOverlay').classList.remove('hidden');
-                    document.getElementById('mainAppContent').classList.add('hidden');
-                    document.getElementById('pendingApprovalScreen').classList.add('hidden');
-                    document.getElementById('adminDashboard').classList.add('hidden');
-                }
-            }
-        });
-
-        initAuth();
-
-        document.getElementById('authForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const authErrorDiv = document.getElementById('authErrorText');
-            authErrorDiv.classList.add('hidden');
-            
-            const nickname = document.getElementById('loginNickname').value.trim();
-            const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-            
-            if (!email.endsWith('@gmail.com')) {
-                showToast("ระบบอนุญาตเฉพาะบัญชี @gmail.com เท่านั้น", true);
-                return;
-            }
-            
-            const btn = document.getElementById('authSubmitBtn');
-            const originalBtnText = btn.innerText;
-            btn.innerText = "กำลังดำเนินการ...";
-            btn.disabled = true;
-
-            try {
-                // ตรวจสอบและบังคับล็อกอินแบบ Anonymous หากระบบยังไม่ผูก User ไว้
-                if (!currentUser) {
-                    try {
-                        const userCred = await signInAnonymously(auth);
-                        currentUser = userCred.user;
-                    } catch(authErr) {
-                        throw new Error(`เชื่อมต่อฐานข้อมูลล้มเหลว (Firebase Auth): ${authErr.message}`);
-                    }
-                }
-
-                const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', email);
-                let docSnap;
-                try {
-                    docSnap = await getDoc(profileRef);
-                } catch (fsErr) {
-                    throw new Error(`อ่านฐานข้อมูลล้มเหลว (Firestore Rules): ${fsErr.message}`);
-                }
-
-                if (docSnap.exists()) {
-                    const existingData = docSnap.data();
-                    if (existingData.nickname !== nickname) {
-                        authErrorDiv.innerText = "ชื่อเล่นไม่ถูกต้อง (ไม่ตรงกับอีเมลนี้) โปรดลองอีกครั้ง";
-                        authErrorDiv.classList.remove('hidden');
-                        btn.innerText = originalBtnText;
-                        btn.disabled = false;
-                        return;
-                    }
-                    showToast("เข้าสู่ระบบสำเร็จ!");
-                    sessionStorage.setItem('activeSessionEmail', email);
-                    listenToProfile(email); 
+                    initAdminDashboard();
                 } else {
-                    if (!nickname) {
-                        authErrorDiv.innerText = "คุณเป็นผู้ใช้ใหม่ กรุณาระบุชื่อเล่นเพื่อลงทะเบียนด้วยครับ";
-                        authErrorDiv.classList.remove('hidden');
-                        btn.innerText = originalBtnText;
-                        btn.disabled = false;
-                        return;
+                    const savedEmail = sessionStorage.getItem('activeSessionEmail');
+                    if (savedEmail) {
+                        checkProfile(savedEmail);
                     }
-                    
-                    try {
-                        await setDoc(profileRef, { 
-                            uid: currentUser.uid,
-                            nickname, 
-                            email, 
-                            status: 'pending',
-                            proQuota: 3,
-                            proUsed: 0,
-                            lastUsedDate: '',
-                            createdAt: Date.now()
-                        });
-                    } catch (fsWriteErr) {
-                         throw new Error(`เขียนฐานข้อมูลล้มเหลว (Firestore Rules): ${fsWriteErr.message}`);
-                    }
-                    
-                    showToast("ลงทะเบียนสำเร็จ! กรุณารอแอดมินอนุมัติเพื่อใช้งาน");
-                        
-                    sessionStorage.setItem('activeSessionEmail', email);
-                    listenToProfile(email);
                 }
-            } catch (err) {
-                console.error("Registration/Login Error:", err);
-                authErrorDiv.innerText = err.message;
-                authErrorDiv.classList.remove('hidden');
-                showToast("เกิดข้อผิดพลาด: โปรดดูรายละเอียดที่กรอบสีแดง", true);
-            } finally {
-                btn.innerText = originalBtnText;
-                btn.disabled = false;
-            }
-        });
-
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            sessionStorage.removeItem('activeSessionEmail');
-            window.location.reload(); 
-        });
-
-        const initAdminDashboard = () => {
-            const profilesCol = collection(db, 'artifacts', appId, 'public', 'data', 'profiles');
-            unsubscribeAdmin = onSnapshot(profilesCol, (snapshot) => {
-                const tbody = document.getElementById('adminUserList');
-                tbody.innerHTML = '';
-                snapshot.docs.forEach(docSnap => {
-                    const data = docSnap.data();
-                    const docId = docSnap.id; 
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-slate-800/30 transition-colors";
-                    const statusBadge = data.status === 'approved' 
-                        ? '<span class="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs">Approved</span>'
-                        : '<span class="px-2 py-1 bg-amber-500/20 text-amber-400 rounded text-xs">Pending</span>';
-                    const safeId = docId.replace(/[^a-zA-Z0-9]/g, '_');
-                    const today = new Date().toDateString();
-                    const dailyUsed = data.lastUsedDate === today ? (data.proUsed || 0) : 0;
-                    tr.innerHTML = `
-                        <td class="px-4 py-3">
-                            <div class="font-bold text-white">${data.nickname}</div>
-                            <div class="text-xs text-slate-500">${data.email}</div>
-                        </td>
-                        <td class="px-4 py-3">${statusBadge}</td>
-                        <td class="px-4 py-3">
-                            <input type="number" id="quota_${safeId}" value="${data.proQuota}" class="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white text-sm">
-                        </td>
-                        <td class="px-4 py-3">${dailyUsed}</td>
-                        <td class="px-4 py-3 flex gap-2">
-                            ${data.status === 'pending' ? `<button onclick="window.approveUser('${docId}')" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white text-xs">อนุมัติ</button>` : `<button onclick="window.revokeUser('${docId}')" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded text-white text-xs">ระงับ</button>`}
-                            <button onclick="window.updateQuota('${docId}', '${safeId}')" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white text-xs">Save</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }, (error) => {
-                console.error("Admin snapshot error:", error);
-                showToast("ไม่สามารถโหลดรายชื่อได้ (โปรดตรวจสอบ Firestore Security Rules): " + error.message, true);
-            });
-        };
-
-        window.approveUser = async (docId) => {
-            try {
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', docId), { status: 'approved' });
-                showToast("อนุมัติสำเร็จ!");
-            } catch (err) {
-                showToast("อัปเดตไม่สำเร็จ: " + err.message, true);
-            }
-        };
-        window.revokeUser = async (docId) => {
-            try {
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', docId), { status: 'pending' });
-            } catch (err) {
-                showToast("อัปเดตไม่สำเร็จ: " + err.message, true);
-            }
-        };
-        window.updateQuota = async (docId, safeId) => {
-            try {
-                const val = document.getElementById(`quota_${safeId}`).value;
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', docId), { proQuota: parseInt(val) });
-                showToast("อัปเดตโควตาสำเร็จ");
-            } catch (err) {
-                showToast("อัปเดตโควตาไม่สำเร็จ: " + err.message, true);
-            }
-        };
-
-        document.getElementById('usePalmistryToggle').addEventListener('change', (e) => {
-            const uploads = document.getElementById('palmistryUploads');
-            if (e.target.checked) {
-                uploads.classList.remove('hidden');
-                document.getElementById('leftHandImg').required = !cachedLeftHand;
-                document.getElementById('rightHandImg').required = !cachedRightHand;
             } else {
-                uploads.classList.add('hidden');
-                document.getElementById('leftHandImg').required = false;
-                document.getElementById('rightHandImg').required = false;
+                signInAnonymously(auth);
             }
         });
 
-        document.getElementById('leftHandImg').addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                cachedLeftHand = null;
-                document.getElementById('leftHandStatus').classList.add('hidden');
+        async function checkProfile(email) {
+            const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', email);
+            onSnapshot(profileRef, (snap) => {
+                if (snap.exists()) {
+                    sessionProfile = snap.data();
+                    document.getElementById('authOverlay').classList.add('hidden');
+                    document.getElementById('displayNickname').innerText = sessionProfile.nickname;
+                    
+                    if (sessionProfile.status === 'approved') {
+                        document.getElementById('mainAppContent').classList.remove('hidden');
+                        document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                        loadHistory();
+                    } else {
+                        document.getElementById('mainAppContent').classList.add('hidden');
+                        document.getElementById('pendingApprovalScreen').classList.remove('hidden');
+                    }
+                }
+            });
+        }
+
+        document.getElementById('authForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.toLowerCase();
+            const nickname = document.getElementById('loginNickname').value;
+            
+            const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', email);
+            const snap = await getDoc(profileRef);
+            
+            if (!snap.exists()) {
+                await setDoc(profileRef, {
+                    uid: currentUser.uid,
+                    nickname: nickname,
+                    email: email,
+                    status: 'pending',
+                    createdAt: Date.now()
+                });
             }
-        });
+            sessionStorage.setItem('activeSessionEmail', email);
+            checkProfile(email);
+        };
 
-        document.getElementById('rightHandImg').addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                cachedRightHand = null;
-                document.getElementById('rightHandStatus').classList.add('hidden');
-            }
-        });
-
-        const fileToBase64 = (file) => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800; 
-                    let width = img.width;
-                    let height = img.height;
-                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                    canvas.width = width; canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
-                };
-                img.onerror = error => reject(error);
-                img.src = event.target.result;
-            };
-            reader.onerror = error => reject(error);
-        });
-
-        // --- Prediction API ---
-        const callGemini = async (prompt, imagesB64 = [], usePro = true) => {
-            const platformApiKey = ""; 
+        // Gemini API Logic
+        const callGemini = async (prompt, imagesB64 = []) => {
+            // ใช้ apiKey เป็นค่าว่าง ("") เพื่อให้ระบบจำลองของ Canvas ทำงานได้
+            // หากนำโค้ดไปรันข้างนอกเว็บนี้ ให้เปลี่ยนเป็น `const apiKey = masterKey;`
+            // *สำคัญ*: คุณต้องเข้าไปเปิดใช้งาน 'Generative Language API' ใน Google Cloud Console ให้กับ Key นี้ก่อนนะครับ
+            const apiKey = "";
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             
-            // ⚠️ API KEY ใหม่ (ถูกหั่น 3 ส่วนเพื่อหลบบอท) ⚠️
-            const gmKey1 = "AIzaSyAtc9RMf";
-            const gmKey2 = "JGkt7lWJb5vbC";
-            const gmKey3 = "DdFnSJOxQ-DOY";
-            const githubGeminiApiKey = gmKey1 + gmKey2 + gmKey3; 
-            
-            let apiKey = (platformApiKey && platformApiKey !== "") ? platformApiKey : githubGeminiApiKey;
-
-            if (!apiKey || apiKey.trim() === "") {
-                throw new Error("MISSING_API_KEY");
-            }
-
-            const modelsToTry = (platformApiKey && platformApiKey !== "") 
-                ? ["gemini-2.5-flash-preview-09-2025", "gemini-1.5-flash"] 
-                : ["gemini-1.5-flash", "gemini-2.0-flash"]; 
-            
-            let currentModelIndex = 0;
-            let useSchema = true; 
-            
-            const qualityPrompt = usePro 
-                ? "คุณคือปรมาจารย์โหราศาสตร์ขั้นสูงสุด (Deep Research Mode) จงวิเคราะห์อย่างละเอียดลึกซึ้งที่สุด" 
-                : "คุณคือโหราจารย์ (Fast Mode) จงวิเคราะห์ข้อมูลสรุปแบบรวดเร็วและกระชับ";
-
-            const finalPrompt = `${qualityPrompt}\n\n${prompt}\n\n*ข้อสำคัญ: ตอบกลับเป็นรูปแบบ JSON โดยใช้คีย์: summary, personality, improvements, finance, love, health, karma, customAnswer, palmistryDetails และ periods (oneMonth, sixMonths, oneYear)*`;
-            const parts = [{ text: finalPrompt }];
+            const parts = [{ text: prompt + " ตอบกลับเป็น JSON ภาษาไทย คีย์: summary, personality, finance" }];
             imagesB64.forEach(b64 => parts.push({ inlineData: { mimeType: "image/jpeg", data: b64 } }));
 
-            let delay = 1000;
-            for (let i = 0; i < 8; i++) {
-                const modelName = modelsToTry[Math.min(currentModelIndex, modelsToTry.length - 1)];
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-                
-                let generationConfig = { responseMimeType: "application/json" };
-                if (useSchema) {
-                    generationConfig.responseSchema = {
-                        type: "OBJECT",
-                        properties: {
-                            summary: { type: "STRING" },
-                            personality: { type: "STRING" },
-                            improvements: { type: "STRING" },
-                            finance: { type: "STRING" },
-                            love: { type: "STRING" },
-                            health: { type: "STRING" },
-                            karma: { type: "STRING" },
-                            customAnswer: { type: "STRING" },
-                            palmistryDetails: { type: "OBJECT", properties: { leftHand: { type: "STRING" }, rightHand: { type: "STRING" } } },
-                            periods: { type: "OBJECT", properties: { oneMonth: { type: "STRING" }, sixMonths: { type: "STRING" }, oneYear: { type: "STRING" } } }
-                        }
-                    };
-                }
-
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: parts }], generationConfig })
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        const errorMsg = errorData.error?.message || "";
-                        
-                        if (response.status === 404 || response.status === 403 || response.status === 401) {
-                            console.warn(`Model ${modelName} returned ${response.status}, switching model...`);
-                            currentModelIndex++;
-                            if (currentModelIndex >= modelsToTry.length) {
-                                throw new Error(`API Request Failed (HTTP ${response.status}): ${errorMsg}`);
-                            }
-                            continue; 
-                        }
-                        
-                        if (response.status === 400 && useSchema) {
-                            console.warn(`Model ${modelName} does not support schema, retrying without schema...`);
-                            useSchema = false;
-                            continue;
-                        }
-                        
-                        throw new Error(`API Error ${response.status}: ${errorMsg}`);
-                    }
-                    
-                    const data = await response.json();
-                    let text = data.candidates[0].content.parts[0].text.replace(/```json/gi, '').replace(/```/g, '').trim();
-                    return JSON.parse(text);
-                } catch (err) {
-                    if (err.message === "MISSING_API_KEY") throw err;
-                    if (err.message.includes("404") || err.message.includes("403") || err.message.includes("401")) {
-                        currentModelIndex++;
-                        if (currentModelIndex >= modelsToTry.length) throw err;
-                        continue;
-                    }
-                    
-                    if (i === 7) throw err;
-                    await new Promise(r => setTimeout(r, delay));
-                    delay *= 2;
-                }
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts }] })
+            });
+            
+            const data = await response.json();
+            
+            // ดักจับ Error จาก API
+            if (!response.ok || data.error) {
+                throw new Error(data.error?.message || `API Request Failed: ${response.status}`);
             }
+            
+            // ดักจับกรณีไม่มีข้อมูลส่งกลับมา
+            if (!data.candidates || data.candidates.length === 0) {
+                throw new Error("ไม่พบข้อมูลตอบกลับจาก AI กรุณาตรวจสอบ API Key หรือโควตา");
+            }
+
+            const rawText = data.candidates[0].content?.parts?.[0]?.text;
+            
+            if (!rawText) {
+                throw new Error("รูปแบบข้อมูลที่ AI ตอบกลับมาไม่ถูกต้องหรือไม่สมบูรณ์");
+            }
+            
+            return JSON.parse(rawText.replace(/```json/gi, '').replace(/```/g, '').trim());
         };
 
-        document.getElementById('astroForm').addEventListener('submit', async (e) => {
+        document.getElementById('astroForm').onsubmit = async (e) => {
             e.preventDefault();
-            if (!sessionProfile || sessionProfile.status !== 'approved') return;
-            const today = new Date().toDateString();
-            let currentUsed = sessionProfile.lastUsedDate === today ? (sessionProfile.proUsed || 0) : 0;
-            const isProMode = currentUsed < (sessionProfile.proQuota || 3);
-            
-            const bDay = document.getElementById('birthDay').value;
-            const bMonth = document.getElementById('birthMonth').value;
-            const bYear = parseInt(document.getElementById('birthYear').value);
-            const birthTime = document.getElementById('birthTime').value;
-            const birthCountry = document.getElementById('birthCountry').value;
-            const birthPlace = document.getElementById('birthPlace').value;
-            const birthLocationMap = document.getElementById('birthLocationMap').value;
-            const customQuestion = document.getElementById('customQuestion').value.trim();
-            const isPalmistry = document.getElementById('usePalmistryToggle').checked;
-
             document.getElementById('welcomeState').classList.add('hidden');
-            document.getElementById('resultContent').classList.add('hidden');
             document.getElementById('loadingState').classList.remove('hidden');
 
-            const loadingSub = document.getElementById('loadingSubText');
-            if (isProMode) {
-                loadingSub.innerHTML = `<span class="text-amber-400 font-bold">ใช้โควตา Deep Research Pro ของ ${sessionProfile.email}</span><br>กำลังขุดลึกถึงรากฐานดวงดาว...`;
-            } else {
-                loadingSub.innerHTML = `<span class="text-blue-400 font-bold">โควตา Pro หมดแล้ว - สลับเป็นโหมด Fast อัตโนมัติ</span><br>กำลังประมวลผลคำทำนาย...`;
-            }
-
-            let yearAD = (bYear > 2400) ? bYear - 543 : bYear;
-            let yearBE = (bYear > 2400) ? bYear : bYear + 543;
-            const formattedDateStr = `${bDay}/${bMonth}/${yearAD} (พ.ศ. ${yearBE})`;
-
-            let imagesB64 = [];
-            let finalLeft = cachedLeftHand, finalRight = cachedRightHand;
-            if (isPalmistry) {
-                try {
-                    if (document.getElementById('leftHandImg').files[0]) finalLeft = await fileToBase64(document.getElementById('leftHandImg').files[0]);
-                    if (document.getElementById('rightHandImg').files[0]) finalRight = await fileToBase64(document.getElementById('rightHandImg').files[0]);
-                    if (finalLeft && finalRight) imagesB64 = [finalLeft, finalRight];
-                    else throw new Error("Missing images");
-                } catch (err) {
-                    showToast("กรุณาอัปโหลดรูปภาพให้ครบ", true);
-                    document.getElementById('loadingState').classList.add('hidden');
-                    document.getElementById('welcomeState').classList.remove('hidden');
-                    return;
-                }
-            }
-
-            let promptBase = `ข้อมูล: ชื่อเล่น: ${sessionProfile.nickname}, เกิด: ${formattedDateStr}, เวลา: ${birthTime}, ประเทศ: ${birthCountry}, เมือง: ${birthPlace}.`;
-            if (isPalmistry) promptBase += ` วิเคราะห์เส้นลายมือจากรูปแนบแยกข้างซ้ายขวาด้วย.`;
-            if (customQuestion) promptBase += ` คำถามพิเศษ: "${customQuestion}".`;
+            const day = document.getElementById('birthDay').value;
+            const month = document.getElementById('birthMonth').value;
+            const year = document.getElementById('birthYear').value;
+            const q = document.getElementById('customQuestion').value;
 
             try {
-                const result = await callGemini(promptBase, imagesB64, isProMode);
-                if (isProMode) {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', sessionProfile.email), { 
-                        proUsed: currentUsed + 1, lastUsedDate: today
-                    });
-                }
-                currentResult = { ...result, nickname: sessionProfile.nickname, email: sessionProfile.email, dateStr: formattedDateStr, isPalmistry, leftHandImage: finalLeft, rightHandImage: finalRight, isProMode, customQuestion, timestamp: Date.now() };
-                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'readings'), currentResult);
-                
-                localStorage.setItem('astro_form_' + sessionProfile.email, JSON.stringify({
-                    birthDay: bDay, birthMonth: bMonth, birthYear: bYear,
-                    birthTime: birthTime, birthCountry: birthCountry, birthPlace: birthPlace,
-                    birthLocationMap: birthLocationMap, usePalmistry: isPalmistry,
-                    leftHand: finalLeft, rightHand: finalRight
-                }));
-
-                displayResult(currentResult);
-                showToast("การวิเคราะห์เสร็จสมบูรณ์");
+                const result = await callGemini(`วิเคราะห์ดวงคนเกิดวันที่ ${day}/${month}/${year} คำถามพิเศษ: ${q}`);
+                displayResult(result);
+                // Save to history
+                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'readings'), {
+                    ...result,
+                    timestamp: Date.now(),
+                    email: sessionProfile.email
+                });
             } catch (err) {
                 console.error(err);
-                if (err.message === "MISSING_API_KEY") {
-                    showToast("ข้อผิดพลาด: ไม่พบ API Key! โปรดสร้าง Key ใหม่และนำไปใส่ในโค้ด", true);
-                } else if (err.message.includes("leaked")) {
-                    showToast("ข้อผิดพลาด: API Key ถูกระงับ โปรดเปลี่ยน Key ใหม่", true);
-                } else {
-                    showToast("เกิดข้อผิดพลาด: " + err.message, true);
-                }
+                showToast(`เกิดข้อผิดพลาด: ${err.message}`, true);
                 document.getElementById('loadingState').classList.add('hidden');
                 document.getElementById('welcomeState').classList.remove('hidden');
             }
-        });
-
-        const displayResult = (data) => {
-            document.getElementById('loadingState').classList.add('hidden');
-            document.getElementById('resultContent').classList.remove('hidden');
-            const modeTag = document.getElementById('resModeTag');
-            modeTag.innerText = data.isProMode ? "Deep Research Pro" : "Fast Mode";
-            modeTag.className = `text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md ml-2 border ${data.isProMode ? 'border-amber-500 text-amber-500 bg-amber-500/10' : 'border-blue-500 text-blue-500 bg-blue-500/10'}`;
-            document.getElementById('resTypeTag').innerText = data.isPalmistry ? "โหราศาสตร์ + หัตถศาสตร์" : "โหราศาสตร์ไฮบริด";
-            document.getElementById('resName').innerText = `ชะตาชีวิตของคุณ ${data.nickname}`;
-            document.getElementById('resSummary').innerText = `"${data.summary}"`;
-            document.getElementById('resPersonality').innerText = data.personality || "-";
-            document.getElementById('resImprovements').innerText = data.improvements || "-";
-            document.getElementById('resFinance').innerText = data.finance || "-";
-            document.getElementById('resLove').innerText = data.love || "-";
-            document.getElementById('resHealth').innerText = data.health || "-";
-            if (data.isPalmistry && data.palmistryDetails) {
-                document.getElementById('resPalmistryContainer').classList.remove('hidden');
-                if (data.leftHandImage) document.getElementById('resLeftHandImg').src = 'data:image/jpeg;base64,' + data.leftHandImage;
-                if (data.rightHandImage) document.getElementById('resRightHandImg').src = 'data:image/jpeg;base64,' + data.rightHandImage;
-                document.getElementById('resLeftHandAnalysis').innerText = data.palmistryDetails.leftHand || "ไม่พบข้อมูล";
-                document.getElementById('resRightHandAnalysis').innerText = data.palmistryDetails.rightHand || "ไม่พบข้อมูล";
-            } else document.getElementById('resPalmistryContainer').classList.add('hidden');
-            if (data.customQuestion) {
-                document.getElementById('resCustomContainer').classList.remove('hidden');
-                document.getElementById('resCustomQuestionText').innerText = `ถาม: ${data.customQuestion}`;
-                document.getElementById('resCustomAnswer').innerText = data.customAnswer;
-            } else document.getElementById('resCustomContainer').classList.add('hidden');
-            document.getElementById('res1m').innerText = data.periods?.oneMonth || "-";
-            document.getElementById('res6m').innerText = data.periods?.sixMonths || "-";
-            document.getElementById('res1y').innerText = data.periods?.oneYear || "-";
-            window.scrollTo({ top: document.getElementById('resultContent').offsetTop - 100, behavior: 'smooth' });
         };
 
-        const loadHistory = () => {
-            if (!sessionProfile || !currentUser) return;
-            onSnapshot(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'readings'), (snapshot) => {
+        function displayResult(data) {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('resultContent').classList.remove('hidden');
+            document.getElementById('resSummary').innerText = data.summary;
+            document.getElementById('resPersonality').innerText = data.personality;
+            document.getElementById('resFinance').innerText = data.finance;
+        }
+
+        function loadHistory() {
+            const readingsCol = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'readings');
+            onSnapshot(readingsCol, (snap) => {
                 const list = document.getElementById('historyList');
                 list.innerHTML = "";
-                const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.email === sessionProfile.email).sort((a, b) => b.timestamp - a.timestamp);
-                if (docs.length === 0) {
-                    list.innerHTML = `<p class="text-xs text-slate-600 italic">ยังไม่มีประวัติ</p>`;
-                    return;
-                }
+                const docs = snap.docs.map(d => d.data()).sort((a,b) => b.timestamp - a.timestamp);
                 docs.forEach(item => {
                     const btn = document.createElement('button');
-                    btn.className = "w-full text-left p-3 rounded-xl bg-slate-800/40 hover:bg-indigo-500/20 border border-slate-700/50 transition-all group";
-                    btn.innerHTML = `<div class="flex items-center justify-between"><div class="flex items-center gap-2 text-sm font-bold text-slate-200 group-hover:text-indigo-400">${item.isPalmistry ? '<i data-lucide="hand" class="text-pink-400 w-4 h-4"></i>' : '<i data-lucide="star" class="text-indigo-400 w-4 h-4"></i>'} ${item.nickname}</div>${item.isProMode ? '<span class="text-[9px] bg-amber-500/20 text-amber-500 px-1 rounded">PRO</span>' : ''}</div><div class="text-[10px] text-slate-500 mt-1 ml-6">${new Date(item.timestamp).toLocaleDateString('th-TH')}</div>`;
+                    btn.className = "w-full text-left p-3 rounded-xl bg-slate-800/50 text-xs border border-slate-700";
+                    btn.innerText = `${new Date(item.timestamp).toLocaleDateString()} - ${item.summary.substring(0, 30)}...`;
                     btn.onclick = () => displayResult(item);
                     list.appendChild(btn);
                 });
-                lucide.createIcons();
             });
+        }
+
+        document.getElementById('usePalmistryToggle').onchange = (e) => {
+            document.getElementById('palmistryUploads').classList.toggle('hidden', !e.target.checked);
         };
 
-        const generatePDF = () => {
-            if (!currentResult) return;
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.setFontSize(22); doc.setTextColor(79, 70, 229);
-            doc.text("AstroHybrid AI Report", 105, 20, { align: "center" });
-            doc.setFontSize(12); doc.text(`Type: ${currentResult.isPalmistry ? 'Astrology & Palmistry' : 'Astrology'}`, 105, 28, { align: "center" });
-            doc.setFontSize(14); doc.setTextColor(20, 20, 20);
-            doc.text(`Name: ${currentResult.nickname}`, 20, 45);
-            doc.text(`Date: ${currentResult.dateStr}`, 20, 52);
-            doc.line(20, 60, 190, 60);
-            let y = 70;
-            const add = (t, c) => {
-                if (y > 260) { doc.addPage(); y = 20; }
-                doc.setFontSize(12); doc.setTextColor(79, 70, 229); doc.text(t, 20, y); y += 6;
-                doc.setFontSize(10); doc.setTextColor(60, 60, 60);
-                const l = doc.splitTextToSize(c || "-", 170); doc.text(l, 20, y);
-                y += (l.length * 5) + 10;
-            };
-            add("Summary", currentResult.summary);
-            add("Personality", currentResult.personality);
-            if (currentResult.isPalmistry && currentResult.palmistryDetails) {
-                add("Left Hand Analysis", currentResult.palmistryDetails.leftHand);
-                add("Right Hand Analysis", currentResult.palmistryDetails.rightHand);
-            }
-            if (currentResult.customQuestion) add(`Q: ${currentResult.customQuestion}`, currentResult.customAnswer);
-            doc.save(`Astro_${currentResult.nickname}.pdf`);
+        document.getElementById('logoutBtn').onclick = () => {
+            sessionStorage.clear();
+            window.location.reload();
         };
 
-        document.getElementById('exportBtn').addEventListener('click', generatePDF);
+        // --- ระบบเปิดปิดและทำงานของ Admin ---
+        document.getElementById('showAdminLoginBtn').onclick = () => {
+            document.getElementById('adminLoginOverlay').classList.remove('hidden');
+        };
         
-        document.getElementById('showAdminLoginBtn').onclick = () => document.getElementById('adminLoginOverlay').classList.remove('hidden');
-        document.getElementById('closeAdminLoginBtn').onclick = () => document.getElementById('adminLoginOverlay').classList.add('hidden');
-        
+        document.getElementById('closeAdminLoginBtn').onclick = () => {
+            document.getElementById('adminLoginOverlay').classList.add('hidden');
+        };
+
         document.getElementById('adminLoginForm').onsubmit = async (e) => {
             e.preventDefault();
-            const btn = e.target.querySelector('button[type="submit"]');
-            const originalText = btn.innerText;
-            btn.innerText = "กำลังตรวจสอบข้อมูล...";
-            btn.disabled = true;
-
             const u = document.getElementById('adminUser').value.trim();
             const p = document.getElementById('adminPass').value.trim();
 
             if (u === 'admin' && p === 'Hongfa401') {
-                
                 sessionStorage.setItem('isAdmin', 'true');
-                
-                if (!currentUser) {
-                    try {
-                        const userCred = await signInAnonymously(auth);
-                        currentUser = userCred.user;
-                    } catch(err) {
-                        showToast(`เชื่อมต่อฐานข้อมูลล้มเหลว: ${err.message}`, true);
-                        btn.innerText = originalText;
-                        btn.disabled = false;
-                        return;
-                    }
-                }
+                if (!currentUser) await signInAnonymously(auth);
                 
                 document.getElementById('adminLoginOverlay').classList.add('hidden');
                 document.getElementById('authOverlay').classList.add('hidden');
@@ -1131,23 +458,79 @@
                 document.getElementById('mainAppContent').classList.add('hidden');
                 
                 document.getElementById('adminDashboard').classList.remove('hidden');
-                if (!unsubscribeAdmin) initAdminDashboard();
+                initAdminDashboard();
                 showToast("เข้าสู่ระบบแอดมินสำเร็จ");
-                
                 e.target.reset();
-                btn.innerText = originalText;
-                btn.disabled = false;
             } else {
                 showToast("Username หรือ Password ไม่ถูกต้อง", true);
-                btn.innerText = originalText;
-                btn.disabled = false;
             }
         };
-        
+
         document.getElementById('exitAdminBtn').onclick = () => { 
             sessionStorage.removeItem('isAdmin');
-            document.getElementById('adminDashboard').classList.add('hidden'); 
             window.location.reload(); 
+        };
+
+        let unsubscribeAdmin = null;
+        const initAdminDashboard = () => {
+            const profilesCol = collection(db, 'artifacts', appId, 'public', 'data', 'profiles');
+            unsubscribeAdmin = onSnapshot(profilesCol, (snapshot) => {
+                const tbody = document.getElementById('adminUserList');
+                tbody.innerHTML = '';
+                snapshot.docs.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const docId = docSnap.id;
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-800/30 transition-colors border-b border-slate-700/50";
+                    
+                    const statusBadge = data.status === 'approved' 
+                        ? '<span class="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs">Approved</span>'
+                        : '<span class="px-2 py-1 bg-amber-500/20 text-amber-400 rounded text-xs">Pending</span>';
+                    
+                    const safeId = docId.replace(/[^a-zA-Z0-9]/g, '_');
+                    
+                    tr.innerHTML = `
+                        <td class="px-4 py-3">
+                            <div class="font-bold text-white">${data.nickname}</div>
+                            <div class="text-xs text-slate-500">${data.email}</div>
+                        </td>
+                        <td class="px-4 py-3">${statusBadge}</td>
+                        <td class="px-4 py-3">
+                            <input type="number" id="quota_${safeId}" value="${data.proQuota || 3}" class="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white text-sm">
+                        </td>
+                        <td class="px-4 py-3 flex gap-2">
+                            ${data.status === 'pending' 
+                                ? `<button onclick="window.approveUser('${docId}')" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white text-xs">อนุมัติ</button>` 
+                                : `<button onclick="window.revokeUser('${docId}')" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded text-white text-xs">ระงับ</button>`}
+                            <button onclick="window.updateQuota('${docId}', '${safeId}')" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white text-xs">Save</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                lucide.createIcons();
+            });
+        };
+
+        window.approveUser = async (docId) => {
+            try {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', docId), { status: 'approved' });
+                showToast("อนุมัติสำเร็จ!");
+            } catch (err) { showToast("Error: " + err.message, true); }
+        };
+        
+        window.revokeUser = async (docId) => {
+            try {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', docId), { status: 'pending' });
+                showToast("ระงับผู้ใช้สำเร็จ");
+            } catch (err) { showToast("Error: " + err.message, true); }
+        };
+        
+        window.updateQuota = async (docId, safeId) => {
+            try {
+                const val = document.getElementById(`quota_${safeId}`).value;
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', docId), { proQuota: parseInt(val) });
+                showToast("อัปเดตโควตาสำเร็จ");
+            } catch (err) { showToast("Error: " + err.message, true); }
         };
 
     </script>
