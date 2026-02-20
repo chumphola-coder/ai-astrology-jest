@@ -338,10 +338,9 @@
 
         // Gemini API Logic
         const callGemini = async (prompt, imagesB64 = []) => {
-            // ใช้ apiKey เป็นค่าว่าง ("") เพื่อให้ระบบจำลองของ Canvas ทำงานได้
-            // หากนำโค้ดไปรันข้างนอกเว็บนี้ ให้เปลี่ยนเป็น `const apiKey = masterKey;`
-            // *สำคัญ*: คุณต้องเข้าไปเปิดใช้งาน 'Generative Language API' ใน Google Cloud Console ให้กับ Key นี้ก่อนนะครับ
-            const apiKey = "";
+            // ดึง masterKey มาใช้เพื่อให้การเรียกใช้งานบน GitHub Pages ทำงานได้สำเร็จ
+            // (ต้องเปิดใช้ Generative Language API ใน Google Cloud Console ด้วยนะครับ)
+            const apiKey = masterKey;
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             
             const parts = [{ text: prompt + " ตอบกลับเป็น JSON ภาษาไทย คีย์: summary, personality, finance" }];
