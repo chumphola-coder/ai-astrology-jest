@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AstroHybrid AI - ดูดวงไฮบริด & หัตถศาสตร์</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
+        body { font-family: 'Sarabun', sans-serif; }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .star-bg {
+            background-color: #020617;
+            background-image: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #020617 100%);
+        }
+        input[type="file"]::file-selector-button {
+            background-color: #4f46e5;
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            margin-right: 1rem;
+            transition: background-color 0.2s;
+        }
+        input[type="file"]::file-selector-button:hover { background-color: #4338ca; }
+    </style>
+</head>
+<body class="star-bg text-slate-200 min-h-screen relative">
+
+    <!-- Auth / Login Modal Overlay -->
+    <div id="authOverlay" class="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="glass-card p-8 rounded-3xl shadow-2xl max-w-md w-full border border-indigo-500/30 text-center relative overflow-hidden">
+            <div class="absolute -top-10 -left-10 w-32 h-32 bg-indigo-600 rounded-full mix-blend-multiply filter blur-2xl opacity-50"></div>
+            <div class="absolute -bottom-10 -right-10 w-32 h-32 bg-purple-600 rounded-full mix-blend-multiply filter blur-2xl opacity-50"></div>
+            
+            <i data-lucide="sparkles" class="text-indigo-400 mx-auto mb-4" size="48"></i>
+            <h2 class="text-2xl font-bold mb-2 text-white">เข้าสู่ระบบ AI Astrology Jest (หมดดูไม่แม่น)</h2>
+            <p class="text-sm text-slate-400 mb-6">กรุณาใช้บัญชี <span class="text-red-400 font-bold">@gmail.com</span> เท่านั้นในการลงทะเบียน</p>
+            
+            <form id="authForm" class="space-y-4 text-left relative z-10">
+                <div>
+                    <label class="block text-sm text-slate-300 mb-1">ชื่อเล่น</label>
+                    <input type="text" id="loginNickname" required class="w-full bg-slate-800/80 border border-slate-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder-slate-500" placeholder="เช่น นัท, พลอย">
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-300 mb-1">อีเมล (Gmail เท่านั้น)</label>
+                    <input type="email" id="loginEmail" required pattern=".+@gmail\.com" title="ต้องเป็น @gmail.com เท่านั้น" class="w-full bg-slate-800/80 border border-slate-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder-slate-500" placeholder="your@gmail.com">
+                </div>
+                <button type="submit" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-4">
+                    ลงทะเบียน / เข้าใช้งาน
+                </button>
+            </form>
+
+            <div class="mt-6 pt-6 border-t border-slate-700/50 relative z-10">
+                <button id="showAdminLoginBtn" class="text-xs text-slate-500 hover:text-indigo-400 flex items-center justify-center gap-1 w-full transition-colors">
+                    <i data-lucide="shield"></i> Admin Access
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="adminLoginOverlay" class="hidden fixed inset-0 z-[110] bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="glass-card p-8 rounded-3xl shadow-2xl max-w-sm w-full border border-red-500/50 text-center relative">
+            <button id="closeAdminLoginBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+            <i data-lucide="shield-alert" class="text-red-500 mx-auto mb-4" size="48"></i>
+            <h2 class="text-xl font-bold mb-6 text-white">ผู้ดูแลระบบ (Admin)</h2>
+            <form id="adminLoginForm" class="space-y-4 text-left">
+                <div>
+                    <label class="block text-sm text-slate-300 mb-1">Username</label>
+                    <input type="text" id="adminUser" required class="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-red-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-300 mb-1">Password</label>
+                    <input type="password" id="adminPass" required class="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-red-500 outline-none">
+                </div>
+                <button type="submit" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-4">
+                    เข้าสู่ระบบ Admin
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Header -->
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg shadow-lg">
+                    <i data-lucide="sparkles" class="text-white"></i>
+                </div>
+                <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 hidden sm:block">
+                    AI Astrology Jest (หมดดูไม่แม่น)
+                </h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <div id="quotaBadge" class="hidden text-xs font-bold px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white border border-amber-400/50 shadow-lg">
+                    Deep Research: <span id="quotaCount">0</span>/3
+                </div>
+                <div id="user-info" class="text-sm text-indigo-300 font-medium bg-indigo-900/30 px-4 py-2 rounded-full border border-indigo-500/30 flex items-center gap-2">
+                    <i data-lucide="user" size="16"></i> <span id="displayNickname">กำลังเชื่อมต่อ...</span>
+                </div>
+                <button id="logoutBtn" class="text-xs text-slate-400 hover:text-white transition-colors">ออกจากระบบ</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Admin Dashboard (Hidden by default) -->
+    <section id="adminDashboard" class="hidden max-w-7xl mx-auto p-4 md:p-8">
+        <div class="glass-card p-6 rounded-3xl shadow-xl border border-red-500/30">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold flex items-center gap-2 text-white">
+                    <i data-lucide="users" class="text-red-400"></i> จัดการผู้ใช้งาน (Admin Panel)
+                </h2>
+                <button id="exitAdminBtn" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg text-sm text-white transition-all">
+                    ปิดหน้าต่าง Admin
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-300">
+                    <thead class="text-xs text-slate-400 uppercase bg-slate-800/50">
+                        <tr>
+                            <th class="px-4 py-3 rounded-tl-lg">ชื่อเล่น / อีเมล</th>
+                            <th class="px-4 py-3">สถานะ</th>
+                            <th class="px-4 py-3">โควตา Pro (Max)</th>
+                            <th class="px-4 py-3">ใช้งานไปแล้ว</th>
+                            <th class="px-4 py-3 rounded-tr-lg">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminUserList" class="divide-y divide-slate-700/50">
+                        <!-- Users will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pending Approval Screen -->
+    <section id="pendingApprovalScreen" class="hidden max-w-2xl mx-auto mt-20 p-8 text-center">
+        <div class="glass-card p-12 rounded-3xl border border-amber-500/30">
+            <div class="bg-amber-500/20 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="clock" class="text-amber-400" size="48"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-white mb-4">รอการอนุมัติ</h2>
+            <p class="text-slate-400 mb-6">เราได้ส่งคำร้องขอสิทธิ์ใช้งานไปที่ <span class="text-white font-bold">chumphola@gmail.com</span> แล้ว โปรดรอให้ผู้ดูแลระบบอนุมัติบัญชีของคุณก่อนจึงจะสามารถใช้งานระบบดูดวงได้</p>
+            <p class="text-xs text-slate-500 italic">กรุณารีเฟรชหน้าเว็บหรือรอสักครู่ หากแอดมินอนุมัติแล้วระบบจะเข้าสู่หน้าจอหลักอัตโนมัติ</p>
+        </div>
+    </section>
+
+    <main id="mainAppContent" class="hidden max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Sidebar / Form -->
+        <aside class="lg:col-span-4 space-y-6">
+            <div class="glass-card p-6 rounded-3xl shadow-xl">
+                <h2 class="text-xl font-semibold mb-6 flex items-center gap-2">
+                    <i data-lucide="moon" class="text-indigo-400"></i> ป้อนข้อมูลดวงชะตา
+                </h2>
+                <form id="astroForm" class="space-y-5">
+                    
+                    <!-- Basic Info -->
+                    <div class="space-y-4 bg-slate-800/30 p-4 rounded-2xl border border-slate-700/50">
+                        <div>
+                            <label class="block text-sm text-slate-400 mb-1">วัน/เดือน/ปีเกิด</label>
+                            <input type="date" id="birthDateFull" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <div>
+                                <label class="block text-sm text-slate-400 mb-1">ประเทศที่เกิด</label>
+                                <input type="text" id="birthCountry" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white" value="ประเทศไทย">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-slate-400 mb-1">เวลาเกิด (เวลาท้องถิ่น)</label>
+                                <input type="time" id="birthTime" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm text-slate-400 mb-1">เมือง/จังหวัด/ตำบล</label>
+                                <input type="text" id="birthPlace" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white" placeholder="เช่น เชียงใหม่, ลอนดอน">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm text-slate-400 mb-1">พิกัดเกิดจาก Google Maps (ถ้ามี)</label>
+                                <input type="text" id="birthLocationMap" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white" placeholder="URL หรือ ละติจูด,ลองจิจูด">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Question Feature -->
+                    <div class="space-y-4 bg-slate-800/30 p-4 rounded-2xl border border-slate-700/50">
+                        <label class="flex items-center gap-2 text-sm font-semibold text-slate-300">
+                            <i data-lucide="message-circle-question" class="text-indigo-400" size="18"></i>
+                            คำถามเฉพาะเจาะจง (ทางเลือก)
+                        </label>
+                        <textarea id="customQuestion" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-white placeholder-slate-500" placeholder="มีเรื่องกังวลใจอะไรที่อยากให้ดวงดาวตอบเป็นพิเศษไหม?"></textarea>
+                    </div>
+
+                    <!-- Palmistry Feature -->
+                    <div class="space-y-4 bg-slate-800/30 p-4 rounded-2xl border border-slate-700/50">
+                        <div class="flex items-center justify-between">
+                            <label class="flex items-center gap-2 text-sm font-semibold text-slate-300 cursor-pointer">
+                                <i data-lucide="hand" class="text-pink-400" size="18"></i>
+                                ผสมผสานการดูลายมือ
+                            </label>
+                            <!-- Toggle Switch -->
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="usePalmistryToggle" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                            </label>
+                        </div>
+                        
+                        <div id="palmistryUploads" class="hidden space-y-3 pt-3 border-t border-slate-700/50">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">ภาพถ่ายฝ่ามือซ้าย <span class="text-red-400">*</span></label>
+                                <input type="file" id="leftHandImg" accept="image/*" class="w-full text-sm text-slate-400">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">ภาพถ่ายฝ่ามือขวา <span class="text-red-400">*</span></label>
+                                <input type="file" id="rightHandImg" accept="image/*" class="w-full text-sm text-slate-400">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-white/20 transform -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
+                        <i data-lucide="search" size="20"></i> <span id="submitBtnText">วิเคราะห์ชะตาชีวิต (คำนวณโควตา...)</span>
+                    </button>
+                </form>
+            </div>
+            
+            <div class="glass-card p-6 rounded-3xl shadow-xl">
+                <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <i data-lucide="history" size="16"></i> ประวัติของฉัน
+                </h3>
+                <div id="historyList" class="space-y-2 max-h-48 overflow-y-auto pr-2">
+                    <p class="text-xs text-slate-600 italic">ยังไม่มีข้อมูล</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Result Section -->
+        <section class="lg:col-span-8">
+            <div id="loadingState" class="hidden h-[600px] flex flex-col items-center justify-center text-center">
+                <div class="relative">
+                    <div class="animate-spin rounded-full h-24 w-24 border-t-4 border-b-4 border-indigo-500 mb-6"></div>
+                    <i data-lucide="cpu" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-purple-400 mb-6" size="32" id="loadingIconMode"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-indigo-400 animate-pulse" id="loadingText">กำลังเชื่อมโยงดวงดาว...</h3>
+                <p class="text-slate-500 mt-2 text-sm max-w-md" id="loadingSubText">กำลังประมวลผล</p>
+            </div>
+
+            <div id="welcomeState" class="h-[600px] flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-800/80 bg-slate-900/30 rounded-3xl opacity-80">
+                <div class="bg-indigo-900/30 p-6 rounded-full mb-6 border border-indigo-500/20">
+                    <i data-lucide="crystal-ball" size="64" class="text-indigo-400"></i>
+                </div>
+                <h3 class="text-2xl font-semibold text-slate-300 mb-2">เปิดลิขิตแห่งดวงดาวและลายมือ</h3>
+                <p class="text-slate-500 max-w-md">บัญชีที่ได้รับการอนุมัติแล้วสามารถใช้งาน Deep Research (Pro) ได้ตามโควตา หากเกินโควตา ระบบจะใช้โหมด Fast ปกติ</p>
+            </div>
+
+            <div id="resultContent" class="hidden space-y-6">
+                <!-- Result Display Area -->
+                <div class="bg-gradient-to-br from-indigo-900/40 via-slate-900 to-purple-900/40 border border-indigo-500/30 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+                    <div class="flex flex-wrap gap-2 mb-6 lg:absolute lg:top-8 lg:right-8 lg:mb-0">
+                        <button id="emailPdfBtn" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2">
+                            <i data-lucide="mail" size="16"></i> ส่ง PDF เข้าอีเมล
+                        </button>
+                        <button id="exportBtn" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2">
+                            <i data-lucide="download" size="16"></i> โหลด PDF
+                        </button>
+                    </div>
+
+                    <div class="mb-6 lg:pr-64">
+                        <span class="text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md" id="resTypeTag">วิเคราะห์ดวงชะตา</span>
+                        <span class="text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md ml-2 border" id="resModeTag">โหมด: -</span>
+                        <h2 class="text-3xl font-bold mt-3 text-white" id="resName">ชะตาชีวิตของคุณ</h2>
+                    </div>
+                    <div class="text-lg leading-relaxed text-slate-200 border-l-4 border-indigo-500 pl-6 italic mb-8" id="resSummary">-</div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-slate-950/50 p-6 rounded-2xl border border-slate-700/50 hover:border-indigo-500/50 transition-colors">
+                            <div class="flex items-center gap-2 mb-3 text-indigo-300">
+                                <i data-lucide="fingerprint" size="20"></i> <span class="font-bold text-lg">ตัวตนและนิสัย</span>
+                            </div>
+                            <p id="resPersonality" class="text-sm text-slate-400 leading-relaxed"></p>
+                        </div>
+                        <div class="bg-slate-950/50 p-6 rounded-2xl border border-slate-700/50 hover:border-amber-500/50 transition-colors">
+                            <div class="flex items-center gap-2 mb-3 text-amber-300">
+                                <i data-lucide="shield-alert" size="20"></i> <span class="font-bold text-lg">สิ่งที่ควรปรับปรุง</span>
+                            </div>
+                            <p id="resImprovements" class="text-sm text-slate-400 leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="glass-card p-6 rounded-2xl border-t-2 border-t-yellow-400/50">
+                        <div class="bg-yellow-400/10 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+                            <i data-lucide="coins" class="text-yellow-400"></i>
+                        </div>
+                        <h4 class="font-bold text-lg mb-2 text-white">การเงิน & โชคลาภ</h4>
+                        <p id="resFinance" class="text-sm text-slate-400 leading-relaxed"></p>
+                    </div>
+                    <div class="glass-card p-6 rounded-2xl border-t-2 border-t-pink-400/50">
+                        <div class="bg-pink-400/10 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+                            <i data-lucide="heart-handshake" class="text-pink-400"></i>
+                        </div>
+                        <h4 class="font-bold text-lg mb-2 text-white">ความรัก & คู่ครอง</h4>
+                        <p id="resLove" class="text-sm text-slate-400 leading-relaxed"></p>
+                    </div>
+                    <div class="glass-card p-6 rounded-2xl border-t-2 border-t-emerald-400/50">
+                        <div class="bg-emerald-400/10 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+                            <i data-lucide="activity" class="text-emerald-400"></i>
+                        </div>
+                        <h4 class="font-bold text-lg mb-2 text-white">สุขภาพ</h4>
+                        <p id="resHealth" class="text-sm text-slate-400 leading-relaxed"></p>
+                    </div>
+                </div>
+
+                <!-- Custom Question Answer Section -->
+                <div id="resCustomContainer" class="hidden glass-card p-6 rounded-3xl border border-indigo-500/30 bg-indigo-900/10 mb-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-300">
+                        <i data-lucide="message-square-text"></i> คำตอบจากดวงดาว (คำถามพิเศษ)
+                    </h3>
+                    <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700/50 border-l-4 border-l-indigo-400">
+                        <p id="resCustomQuestionText" class="text-sm font-bold text-slate-200 mb-3 italic">ถาม: -</p>
+                        <p id="resCustomAnswer" class="text-sm text-slate-400 leading-relaxed"></p>
+                    </div>
+                </div>
+
+                <!-- Timeline -->
+                <div class="glass-card p-8 rounded-3xl border border-slate-700/50 bg-slate-900/80">
+                    <h3 class="text-xl font-bold mb-8 flex items-center gap-2 text-white">
+                        <i data-lucide="calendar-clock" class="text-indigo-400"></i> ไทม์ไลน์อนาคต
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+                        <div class="relative z-10 bg-slate-950 p-5 rounded-xl border border-blue-500/20 shadow-lg">
+                            <h5 class="font-bold text-blue-300 mb-2">1 เดือนข้างหน้า</h5>
+                            <p id="res1m" class="text-sm text-slate-400"></p>
+                        </div>
+                        <div class="relative z-10 bg-slate-950 p-5 rounded-xl border border-purple-500/20 shadow-lg">
+                            <h5 class="font-bold text-purple-300 mb-2">6 เดือนข้างหน้า</h5>
+                            <p id="res6m" class="text-sm text-slate-400"></p>
+                        </div>
+                        <div class="relative z-10 bg-slate-950 p-5 rounded-xl border border-pink-500/20 shadow-lg">
+                            <h5 class="font-bold text-pink-300 mb-2">1 ปีข้างหน้า</h5>
+                            <p id="res1y" class="text-sm text-slate-400"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform transition-transform translate-y-20 opacity-0 z-50">
+        <i data-lucide="info" size="20"></i>
+        <span id="toastMsg">ข้อความแจ้งเตือน</span>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'astrology-v3';
+
+        lucide.createIcons();
+
+        let currentUser = null;
+        let sessionProfile = null;
+        let isAdminView = false;
+        let unsubscribeAdmin = null;
+        let currentResult = null;
+
+        // --- UI Utilities ---
+        const showToast = (msg, isError = false) => {
+            const toast = document.getElementById('toast');
+            toast.className = `fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform transition-all z-50 ${isError ? 'bg-red-600' : 'bg-emerald-600'}`;
+            document.getElementById('toastMsg').innerText = msg;
+            requestAnimationFrame(() => toast.classList.remove('translate-y-20', 'opacity-0'));
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 5000);
+        };
+
+        const updateQuotaUI = () => {
+            if (!sessionProfile || sessionProfile.status !== 'approved') return;
+            document.getElementById('quotaBadge').classList.remove('hidden');
+            document.getElementById('quotaCount').innerText = sessionProfile.proUsed || 0;
+            const btnText = document.getElementById('submitBtnText');
+            
+            if ((sessionProfile.proUsed || 0) < (sessionProfile.proQuota || 3)) {
+                btnText.innerText = "วิเคราะห์ชะตาชีวิต (Deep Research Pro)";
+                document.getElementById('submitBtn').classList.replace('bg-indigo-600', 'bg-amber-600');
+                document.getElementById('submitBtn').classList.replace('hover:bg-indigo-500', 'hover:bg-amber-500');
+            } else {
+                btnText.innerText = "วิเคราะห์ชะตาชีวิต (Fast Mode)";
+                document.getElementById('submitBtn').classList.replace('bg-amber-600', 'bg-blue-600');
+                document.getElementById('submitBtn').classList.replace('hover:bg-amber-500', 'hover:bg-blue-500');
+            }
+        };
+
+        // --- Core Auth Logic ---
+        const initAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        };
+
+        const listenToProfile = (uid) => {
+            // Public profiles for admin visibility & user state syncing
+            const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', uid);
+            onSnapshot(profileRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    sessionProfile = docSnap.data();
+                    document.getElementById('displayNickname').innerText = sessionProfile.nickname;
+                    
+                    if (sessionProfile.status === 'pending') {
+                        document.getElementById('authOverlay').classList.add('hidden');
+                        document.getElementById('mainAppContent').classList.add('hidden');
+                        document.getElementById('pendingApprovalScreen').classList.remove('hidden');
+                    } else if (sessionProfile.status === 'approved') {
+                        document.getElementById('authOverlay').classList.add('hidden');
+                        document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                        document.getElementById('mainAppContent').classList.remove('hidden');
+                        updateQuotaUI();
+                        loadHistory();
+                    }
+                } else {
+                    document.getElementById('authOverlay').classList.remove('hidden');
+                }
+            });
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                listenToProfile(user.uid);
+            }
+        });
+
+        initAuth();
+
+        // --- Login / Register ---
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser) return;
+            const nickname = document.getElementById('loginNickname').value;
+            const email = document.getElementById('loginEmail').value;
+
+            if (!email.endsWith('@gmail.com')) {
+                showToast("ระบบอนุญาตเฉพาะบัญชี @gmail.com เท่านั้น", true);
+                return;
+            }
+
+            try {
+                // Rule 1: Cross-user visibility requires public/data
+                const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', currentUser.uid);
+                const docSnap = await getDoc(profileRef);
+                
+                if (!docSnap.exists()) {
+                    // New Registration
+                    await setDoc(profileRef, { 
+                        uid: currentUser.uid,
+                        nickname, 
+                        email, 
+                        status: 'pending',
+                        proQuota: 3,
+                        proUsed: 0,
+                        createdAt: Date.now()
+                    });
+                    
+                    // Simulate sending email to admin
+                    showToast("ระบบได้จำลองการส่งอีเมลแจ้งขอสิทธิ์ไปยัง chumphola@gmail.com แล้ว");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("เกิดข้อผิดพลาดในการลงทะเบียน", true);
+            }
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            document.getElementById('authOverlay').classList.remove('hidden');
+            document.getElementById('mainAppContent').classList.add('hidden');
+            document.getElementById('pendingApprovalScreen').classList.add('hidden');
+        });
+
+        // --- Admin Controls ---
+        document.getElementById('showAdminLoginBtn').addEventListener('click', () => {
+            document.getElementById('adminLoginOverlay').classList.remove('hidden');
+        });
+        document.getElementById('closeAdminLoginBtn').addEventListener('click', () => {
+            document.getElementById('adminLoginOverlay').classList.add('hidden');
+        });
+
+        document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const u = document.getElementById('adminUser').value;
+            const p = document.getElementById('adminPass').value;
+            if (u === 'admin' && p === 'Hongfa401') {
+                document.getElementById('adminLoginOverlay').classList.add('hidden');
+                document.getElementById('authOverlay').classList.add('hidden');
+                document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                document.getElementById('mainAppContent').classList.add('hidden');
+                document.getElementById('adminDashboard').classList.remove('hidden');
+                initAdminDashboard();
+                showToast("เข้าสู่ระบบแอดมินสำเร็จ");
+            } else {
+                showToast("Username หรือ Password ไม่ถูกต้อง", true);
+            }
+        });
+
+        document.getElementById('exitAdminBtn').addEventListener('click', () => {
+            document.getElementById('adminDashboard').classList.add('hidden');
+            if (unsubscribeAdmin) unsubscribeAdmin();
+            // Return to user state
+            if (sessionProfile && sessionProfile.status === 'approved') {
+                document.getElementById('mainAppContent').classList.remove('hidden');
+            } else if (sessionProfile && sessionProfile.status === 'pending') {
+                document.getElementById('pendingApprovalScreen').classList.remove('hidden');
+            } else {
+                document.getElementById('authOverlay').classList.remove('hidden');
+            }
+        });
+
+        const initAdminDashboard = () => {
+            const profilesCol = collection(db, 'artifacts', appId, 'public', 'data', 'profiles');
+            unsubscribeAdmin = onSnapshot(profilesCol, (snapshot) => {
+                const tbody = document.getElementById('adminUserList');
+                tbody.innerHTML = '';
+                snapshot.docs.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-800/30 transition-colors";
+                    
+                    const statusBadge = data.status === 'approved' 
+                        ? '<span class="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs">Approved</span>'
+                        : '<span class="px-2 py-1 bg-amber-500/20 text-amber-400 rounded text-xs">Pending</span>';
+
+                    tr.innerHTML = `
+                        <td class="px-4 py-3">
+                            <div class="font-bold text-white">${data.nickname}</div>
+                            <div class="text-xs text-slate-500">${data.email}</div>
+                        </td>
+                        <td class="px-4 py-3">${statusBadge}</td>
+                        <td class="px-4 py-3">
+                            <input type="number" id="quota_${data.uid}" value="${data.proQuota}" class="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white text-sm">
+                        </td>
+                        <td class="px-4 py-3">${data.proUsed || 0}</td>
+                        <td class="px-4 py-3 flex gap-2">
+                            ${data.status === 'pending' ? `<button onclick="window.approveUser('${data.uid}')" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white text-xs">อนุมัติ</button>` : `<button onclick="window.revokeUser('${data.uid}')" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded text-white text-xs">ระงับ</button>`}
+                            <button onclick="window.updateQuota('${data.uid}')" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white text-xs">Save Quota</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }, (err) => console.error(err));
+        };
+
+        // Attach global functions for admin inline onclicks
+        window.approveUser = async (uid) => {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', uid), { status: 'approved' });
+            // Simulate sending approval email
+            showToast("อนุมัติสำเร็จ จำลองการส่งอีเมลแจ้งเตือนไปยังผู้ใช้แล้ว");
+        };
+        window.revokeUser = async (uid) => {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', uid), { status: 'pending' });
+        };
+        window.updateQuota = async (uid) => {
+            const val = document.getElementById(`quota_${uid}`).value;
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', uid), { proQuota: parseInt(val) });
+            showToast("อัปเดตโควตาสำเร็จ");
+        };
+
+
+        // --- UI Interactions ---
+        document.getElementById('usePalmistryToggle').addEventListener('change', (e) => {
+            const uploads = document.getElementById('palmistryUploads');
+            if (e.target.checked) {
+                uploads.classList.remove('hidden');
+            } else {
+                uploads.classList.add('hidden');
+                document.getElementById('leftHandImg').value = '';
+                document.getElementById('rightHandImg').value = '';
+            }
+        });
+
+        const fileToBase64 = (file) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = error => reject(error);
+        });
+
+        // --- Prediction API ---
+        const callGemini = async (prompt, imagesB64 = [], usePro = true) => {
+            const apiKey = ""; 
+            // Simulated model routing. Since sandbox environment strictly allows 'gemini-2.5-flash-preview-09-2025', 
+            // we use it for both but adjust prompt slightly to simulate "Deep Research" vs "Fast".
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const qualityPrompt = usePro 
+                ? "คุณคือปรมาจารย์โหราศาสตร์ขั้นสูงสุด (Deep Research Mode) จงวิเคราะห์อย่างละเอียดลึกซึ้งที่สุด" 
+                : "คุณคือโหราจารย์ (Fast Mode) จงวิเคราะห์ข้อมูลสรุปแบบรวดเร็วและกระชับ";
+
+            const finalPrompt = `${qualityPrompt}\n\n${prompt}`;
+            
+            const parts = [{ text: finalPrompt }];
+            imagesB64.forEach(b64 => parts.push({ inlineData: { mimeType: "image/jpeg", data: b64 } }));
+
+            let delay = 1000;
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: parts }],
+                            generationConfig: {
+                                responseMimeType: "application/json",
+                                responseSchema: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        summary: { type: "STRING" },
+                                        personality: { type: "STRING" },
+                                        improvements: { type: "STRING" },
+                                        finance: { type: "STRING" },
+                                        love: { type: "STRING" },
+                                        health: { type: "STRING" },
+                                        karma: { type: "STRING" },
+                                        customAnswer: { type: "STRING" },
+                                        periods: {
+                                            type: "OBJECT",
+                                            properties: {
+                                                oneMonth: { type: "STRING" },
+                                                sixMonths: { type: "STRING" },
+                                                oneYear: { type: "STRING" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        })
+                    });
+
+                    if (!response.ok) throw new Error("API Request Failed");
+                    const data = await response.json();
+                    return JSON.parse(data.candidates[0].content.parts[0].text);
+                } catch (err) {
+                    if (i === 4) throw err;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        };
+
+        document.getElementById('astroForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser || sessionProfile.status !== 'approved') return;
+
+            const isProMode = (sessionProfile.proUsed || 0) < (sessionProfile.proQuota || 3);
+            
+            const birthDateFull = document.getElementById('birthDateFull').value;
+            const birthTime = document.getElementById('birthTime').value;
+            const birthCountry = document.getElementById('birthCountry').value;
+            const birthPlace = document.getElementById('birthPlace').value;
+            const birthLocationMap = document.getElementById('birthLocationMap').value;
+            const customQuestion = document.getElementById('customQuestion').value.trim();
+            const isPalmistry = document.getElementById('usePalmistryToggle').checked;
+
+            document.getElementById('welcomeState').classList.add('hidden');
+            document.getElementById('resultContent').classList.add('hidden');
+            document.getElementById('loadingState').classList.remove('hidden');
+
+            const loadingSub = document.getElementById('loadingSubText');
+            if (isProMode) {
+                loadingSub.innerHTML = `<span class="text-amber-400 font-bold">ใช้โควตา Deep Research (Pro) ของ chumphola@gmail.com</span><br>กำลังขุดลึกถึงรากฐานดวงดาว...`;
+            } else {
+                loadingSub.innerHTML = `<span class="text-blue-400 font-bold">โควตา Pro หมดแล้ว - สลับเป็นโหมด Fast อัตโนมัติ</span><br>กำลังประมวลผลคำทำนาย...`;
+            }
+
+            const dateObj = new Date(birthDateFull);
+            const yearBE = dateObj.getFullYear() + 543;
+            const formattedDateStr = `${dateObj.getDate()}/${dateObj.getMonth()+1}/${dateObj.getFullYear()} (พ.ศ. ${yearBE})`;
+
+            let imagesB64 = [];
+            let promptBase = ``;
+            
+            if (isPalmistry) {
+                try {
+                    const leftInput = document.getElementById('leftHandImg');
+                    const rightInput = document.getElementById('rightHandImg');
+                    if (leftInput.files[0] && rightInput.files[0]) {
+                        imagesB64 = [await fileToBase64(leftInput.files[0]), await fileToBase64(rightInput.files[0])];
+                        promptBase += `วิเคราะห์ทั้งเส้นลายมือและดวงชะตาร่วมกัน `;
+                    }
+                } catch (err) {
+                    showToast("ไม่สามารถอ่านไฟล์รูปภาพได้", true);
+                    document.getElementById('loadingState').classList.add('hidden');
+                    return;
+                }
+            }
+
+            promptBase += `
+                ข้อมูล: ชื่อเล่น: ${sessionProfile.nickname}, เกิด: ${formattedDateStr}, เวลา: ${birthTime} (ท้องถิ่น), ประเทศ: ${birthCountry}, เมือง: ${birthPlace}.
+            `;
+            if (birthLocationMap) promptBase += ` พิกัด: ${birthLocationMap}.`;
+            if (customQuestion) promptBase += ` คำถามเจาะจง: "${customQuestion}".`;
+
+            try {
+                const result = await callGemini(promptBase, imagesB64, isProMode);
+                
+                // Update quota if used Pro
+                if (isProMode) {
+                    const newUsed = (sessionProfile.proUsed || 0) + 1;
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', currentUser.uid), { proUsed: newUsed });
+                }
+
+                currentResult = { 
+                    ...result, 
+                    nickname: sessionProfile.nickname,
+                    email: sessionProfile.email,
+                    dateStr: formattedDateStr,
+                    isPalmistry,
+                    isProMode,
+                    customQuestion,
+                    timestamp: Date.now() 
+                };
+                
+                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'readings'), currentResult);
+
+                displayResult(currentResult);
+                showToast("การวิเคราะห์เสร็จสมบูรณ์");
+            } catch (err) {
+                console.error(err);
+                showToast("เกิดข้อผิดพลาดในการประมวลผล", true);
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('welcomeState').classList.remove('hidden');
+            }
+        });
+
+        const displayResult = (data) => {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('resultContent').classList.remove('hidden');
+            
+            const modeTag = document.getElementById('resModeTag');
+            if (data.isProMode) {
+                modeTag.innerText = "Deep Research (Pro)";
+                modeTag.className = "text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md ml-2 border border-amber-500 text-amber-500 bg-amber-500/10";
+            } else {
+                modeTag.innerText = "Fast Mode";
+                modeTag.className = "text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md ml-2 border border-blue-500 text-blue-500 bg-blue-500/10";
+            }
+
+            document.getElementById('resTypeTag').innerText = data.isPalmistry ? "โหราศาสตร์ + หัตถศาสตร์" : "โหราศาสตร์ไฮบริด";
+            document.getElementById('resTypeTag').className = `text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md ${data.isPalmistry ? 'text-pink-400 bg-pink-500/10' : 'text-indigo-400 bg-indigo-500/10'}`;
+            
+            document.getElementById('resName').innerText = `ชะตาชีวิตของคุณ ${data.nickname}`;
+            document.getElementById('resSummary').innerText = `"${data.summary}"`;
+            document.getElementById('resPersonality').innerText = data.personality;
+            document.getElementById('resImprovements').innerText = data.improvements;
+            document.getElementById('resFinance').innerText = data.finance;
+            document.getElementById('resLove').innerText = data.love;
+            document.getElementById('resHealth').innerText = data.health;
+            
+            if (data.customQuestion && data.customAnswer) {
+                document.getElementById('resCustomContainer').classList.remove('hidden');
+                document.getElementById('resCustomQuestionText').innerText = `ถาม: ${data.customQuestion}`;
+                document.getElementById('resCustomAnswer').innerText = data.customAnswer;
+            } else {
+                document.getElementById('resCustomContainer').classList.add('hidden');
+            }
+
+            document.getElementById('res1m').innerText = data.periods.oneMonth;
+            document.getElementById('res6m').innerText = data.periods.sixMonths;
+            document.getElementById('res1y').innerText = data.periods.oneYear;
+
+            window.scrollTo({ top: document.getElementById('resultContent').offsetTop - 100, behavior: 'smooth' });
+        };
+
+        const loadHistory = () => {
+            if (!currentUser) return;
+            const historyCol = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'readings');
+            onSnapshot(historyCol, (snapshot) => {
+                const list = document.getElementById('historyList');
+                list.innerHTML = "";
+                const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.timestamp - a.timestamp);
+                if (docs.length === 0) return list.innerHTML = `<p class="text-xs text-slate-600 italic">ยังไม่มีประวัติ</p>`;
+                
+                docs.forEach(item => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-full text-left p-3 rounded-xl bg-slate-800/40 hover:bg-indigo-500/20 border border-slate-700/50 transition-all group";
+                    btn.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2 text-sm font-bold text-slate-200 group-hover:text-indigo-400">
+                                ${item.isPalmistry ? '<i data-lucide="hand" class="text-pink-400 w-4 h-4"></i>' : '<i data-lucide="star" class="text-indigo-400 w-4 h-4"></i>'}
+                                ${item.nickname}
+                            </div>
+                            ${item.isProMode ? '<span class="text-[9px] bg-amber-500/20 text-amber-500 px-1 rounded">PRO</span>' : ''}
+                        </div>
+                        <div class="text-[10px] text-slate-500 mt-1 ml-6">${new Date(item.timestamp).toLocaleDateString('th-TH')}</div>
+                    `;
+                    btn.onclick = () => displayResult(item);
+                    list.appendChild(btn);
+                });
+                lucide.createIcons();
+            });
+        };
+
+        // PDF Generation
+        const generatePDF = (mode) => {
+            if (!currentResult) return;
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(22); doc.setTextColor(79, 70, 229);
+            doc.text("AstroHybrid AI Report", 105, 20, { align: "center" });
+            
+            doc.setFontSize(12); doc.setTextColor(100, 100, 100);
+            const modeText = currentResult.isProMode ? "Deep Research (Pro)" : "Fast Mode";
+            doc.text(`Analysis Type: ${currentResult.isPalmistry ? 'Astrology & Palmistry' : 'Astrology'} [${modeText}]`, 105, 28, { align: "center" });
+
+            doc.setFontSize(14); doc.setTextColor(20, 20, 20);
+            doc.text(`Name: ${currentResult.nickname}`, 20, 45);
+            doc.text(`Date Info: ${currentResult.dateStr}`, 20, 52);
+            doc.line(20, 60, 190, 60);
+
+            let y = 70;
+            const addSection = (title, content) => {
+                if (y > 260) { doc.addPage(); y = 20; }
+                doc.setFontSize(12); doc.setTextColor(79, 70, 229); doc.text(title, 20, y); y += 6;
+                doc.setFontSize(11); doc.setTextColor(60, 60, 60);
+                const lines = doc.splitTextToSize(content || "-", 170); doc.text(lines, 20, y);
+                y += (lines.length * 6) + 10;
+            };
+
+            addSection("Summary", currentResult.summary);
+            addSection("Personality", currentResult.personality);
+            if (currentResult.customQuestion) addSection(`Q: ${currentResult.customQuestion}`, currentResult.customAnswer);
+
+            if (mode === 'download') doc.save(`Astro_${currentResult.nickname}.pdf`);
+            else {
+                showToast(`ส่ง PDF แจ้งผลลัพธ์ไปที่ ${currentResult.email} แล้ว (จำลอง)`);
+            }
+        };
+
+        document.getElementById('exportBtn').addEventListener('click', () => generatePDF('download'));
+        document.getElementById('emailPdfBtn').addEventListener('click', () => generatePDF('email'));
+
+    </script>
+</body>
+</html>
