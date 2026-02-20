@@ -446,24 +446,24 @@
             }
         };
 
-        // ฟังการเปลี่ยนแปลงโปรไฟล์ พร้อมตรวจเช็คสถานะการล็อกอินใน Session
-        const listenToProfile = (uid) => {
+        // โหลดข้อมูลโปรไฟล์จาก Email เป็นหลัก
+        const listenToProfile = (emailKey) => {
             if (profileUnsubscribe) profileUnsubscribe();
 
-            const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', uid);
+            const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', emailKey);
             profileUnsubscribe = onSnapshot(profileRef, (docSnap) => {
+                const activeSession = sessionStorage.getItem('activeSession');
+                
+                // ถ้าระบบจำได้ว่าผู้ใช้กด Logout ไปแล้ว ให้หยุดทำงานและโชว์หน้า Login ทันที
+                if (!activeSession || activeSession !== emailKey) {
+                    document.getElementById('authOverlay').classList.remove('hidden');
+                    document.getElementById('mainAppContent').classList.add('hidden');
+                    document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                    return;
+                }
+
                 if (docSnap.exists()) {
                     sessionProfile = docSnap.data();
-                    
-                    // บังคับเช็คการล็อกเอาต์ (ถ้า session ไม่มีอีเมลตรงกัน ให้เด้งกลับไปหน้าแรก)
-                    const activeSession = sessionStorage.getItem('activeSession');
-                    if (!activeSession || activeSession !== sessionProfile.email.toLowerCase()) {
-                        document.getElementById('authOverlay').classList.remove('hidden');
-                        document.getElementById('mainAppContent').classList.add('hidden');
-                        document.getElementById('pendingApprovalScreen').classList.add('hidden');
-                        return;
-                    }
-
                     document.getElementById('displayNickname').innerText = sessionProfile.nickname;
                     document.getElementById('authOverlay').classList.add('hidden');
                     
@@ -484,15 +484,26 @@
             });
         };
 
+        // เมื่อโหลดหน้าเว็บ ตรวจสอบทันทีว่ามี Session เดิมค้างอยู่ไหม (แก้ปัญหาตอนรีเฟรช / ล็อกเอาต์)
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
-                listenToProfile(user.uid);
+                const activeSession = sessionStorage.getItem('activeSession');
+                if (activeSession) {
+                    // ถ้ายังไม่ได้กด Logout ให้ดึงข้อมูลเก่ามาโชว์
+                    listenToProfile(activeSession);
+                } else {
+                    // ถ้ากด Logout ไปแล้ว หรือเพิ่งเข้าเว็บครั้งแรก ให้บังคับล็อกอินใหม่
+                    document.getElementById('authOverlay').classList.remove('hidden');
+                    document.getElementById('mainAppContent').classList.add('hidden');
+                    document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                }
             }
         });
 
         initAuth();
 
+        // สมัครสมาชิก / เข้าสู่ระบบ
         document.getElementById('authForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!currentUser) return;
@@ -509,22 +520,15 @@
             btn.disabled = true;
 
             try {
-                const profilesCol = collection(db, 'artifacts', appId, 'public', 'data', 'profiles');
-                const snapshot = await getDocs(profilesCol);
+                // เปลี่ยนไปใช้ Email เป็น Document ID เพื่อความรวดเร็วและปลอดภัยขึ้น
+                const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', email);
+                const docSnap = await getDoc(profileRef);
                 
-                let existingProfile = null;
-                snapshot.forEach(docSnap => {
-                    if (docSnap.data().email.toLowerCase() === email) {
-                        existingProfile = docSnap.data();
-                    }
-                });
-
-                if (existingProfile) {
+                if (docSnap.exists()) {
                     showToast("ยินดีต้อนรับกลับเข้าสู่ระบบ");
-                    sessionStorage.setItem('activeSession', existingProfile.email.toLowerCase());
-                    listenToProfile(existingProfile.uid); 
+                    sessionStorage.setItem('activeSession', email);
+                    listenToProfile(email); 
                 } else {
-                    const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', currentUser.uid);
                     await setDoc(profileRef, { 
                         uid: currentUser.uid,
                         nickname, 
@@ -548,19 +552,19 @@
                         }).catch(err => console.error("Email error: ", err));
 
                     sessionStorage.setItem('activeSession', email);
-                    listenToProfile(currentUser.uid);
+                    listenToProfile(email);
                 }
             } catch (err) {
                 console.error(err);
-                showToast("เกิดข้อผิดพลาดในการลงทะเบียน เช็ค Firebase Config", true);
+                showToast("เกิดข้อผิดพลาดในการลงทะเบียน เช็คสิทธิ์ Firebase", true);
             } finally {
                 btn.innerText = "ลงทะเบียน / เข้าใช้งาน";
                 btn.disabled = false;
             }
         });
 
+        // ออกจากระบบ
         document.getElementById('logoutBtn').addEventListener('click', () => {
-            // ระบบล็อกเอาต์ที่แท้จริง: ล้าง Session แล้วโหลดหน้าเว็บใหม่
             sessionStorage.removeItem('activeSession');
             window.location.reload(); 
         });
@@ -592,9 +596,10 @@
         document.getElementById('exitAdminBtn').addEventListener('click', () => {
             document.getElementById('adminDashboard').classList.add('hidden');
             if (unsubscribeAdmin) unsubscribeAdmin();
-            if (sessionProfile && sessionProfile.status === 'approved' && sessionStorage.getItem('activeSession')) {
+            const activeSession = sessionStorage.getItem('activeSession');
+            if (sessionProfile && sessionProfile.status === 'approved' && activeSession) {
                 document.getElementById('mainAppContent').classList.remove('hidden');
-            } else if (sessionProfile && sessionProfile.status === 'pending' && sessionStorage.getItem('activeSession')) {
+            } else if (sessionProfile && sessionProfile.status === 'pending' && activeSession) {
                 document.getElementById('pendingApprovalScreen').classList.remove('hidden');
             } else {
                 document.getElementById('authOverlay').classList.remove('hidden');
@@ -615,6 +620,9 @@
                         ? '<span class="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs">Approved</span>'
                         : '<span class="px-2 py-1 bg-amber-500/20 text-amber-400 rounded text-xs">Pending</span>';
 
+                    // ป้องกัน Error จากเครื่องหมาย @ ใน ID
+                    const safeId = data.email.replace(/[@.]/g, '_');
+
                     tr.innerHTML = `
                         <td class="px-4 py-3">
                             <div class="font-bold text-white">${data.nickname}</div>
@@ -622,12 +630,12 @@
                         </td>
                         <td class="px-4 py-3">${statusBadge}</td>
                         <td class="px-4 py-3">
-                            <input type="number" id="quota_${data.uid}" value="${data.proQuota}" class="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white text-sm">
+                            <input type="number" id="quota_${safeId}" value="${data.proQuota}" class="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white text-sm">
                         </td>
                         <td class="px-4 py-3">${data.proUsed || 0}</td>
                         <td class="px-4 py-3 flex gap-2">
-                            ${data.status === 'pending' ? `<button onclick="window.approveUser('${data.uid}')" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white text-xs">อนุมัติ</button>` : `<button onclick="window.revokeUser('${data.uid}')" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded text-white text-xs">ระงับ</button>`}
-                            <button onclick="window.updateQuota('${data.uid}')" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white text-xs">Save</button>
+                            ${data.status === 'pending' ? `<button onclick="window.approveUser('${data.email}')" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white text-xs">อนุมัติ</button>` : `<button onclick="window.revokeUser('${data.email}')" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded text-white text-xs">ระงับ</button>`}
+                            <button onclick="window.updateQuota('${data.email}', '${safeId}')" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white text-xs">Save</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -635,16 +643,16 @@
             });
         };
 
-        window.approveUser = async (uid) => {
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', uid), { status: 'approved' });
+        window.approveUser = async (email) => {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', email), { status: 'approved' });
             showToast("อนุมัติสำเร็จ!");
         };
-        window.revokeUser = async (uid) => {
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', uid), { status: 'pending' });
+        window.revokeUser = async (email) => {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', email), { status: 'pending' });
         };
-        window.updateQuota = async (uid) => {
-            const val = document.getElementById(`quota_${uid}`).value;
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', uid), { proQuota: parseInt(val) });
+        window.updateQuota = async (email, safeId) => {
+            const val = document.getElementById(`quota_${safeId}`).value;
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', email), { proQuota: parseInt(val) });
             showToast("อัปเดตโควตาสำเร็จ");
         };
 
@@ -670,13 +678,12 @@
         const callGemini = async (prompt, imagesB64 = [], usePro = true) => {
             let apiKey = ""; 
             
-            // ⚠️ ต้องใส่ Gemini API Key ของคุณที่นี่ (เอามาจาก https://aistudio.google.com/)
+            // ⚠️ ต้องใส่ Gemini API Key ของคุณที่นี่
             const githubGeminiApiKey = "AIzaSyCFibyy8DsXh2Pm-o__e1JMgJTQQVNhFfY"; 
             
-            // ตรวจจับว่าถ้ารันบน GitHub จะดึง Key ด้านบนไปใช้
             if (typeof __firebase_config === 'undefined') {
                 apiKey = githubGeminiApiKey;
-                if (apiKey === "ใส่_GEMINI_API_KEY_ของคุณที่นี่") {
+                if (!apiKey || apiKey === "ใส่_GEMINI_API_KEY_ของคุณที่นี่") {
                     throw new Error("Missing_Gemini_Key");
                 }
             }
@@ -729,7 +736,7 @@
                     const data = await response.json();
                     return JSON.parse(data.candidates[0].content.parts[0].text);
                 } catch (err) {
-                    if (err.message === "Missing_Gemini_Key") throw err; // ปล่อย Error ทันทีถ้าไม่มี Key
+                    if (err.message === "Missing_Gemini_Key") throw err; 
                     if (i === 4) throw err;
                     await new Promise(r => setTimeout(r, delay));
                     delay *= 2;
@@ -737,6 +744,7 @@
             }
         };
 
+        // ทำนายดวงชะตา
         document.getElementById('astroForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!sessionProfile || sessionProfile.status !== 'approved') return;
@@ -793,7 +801,8 @@
                 
                 if (isProMode) {
                     const newUsed = (sessionProfile.proUsed || 0) + 1;
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', sessionProfile.uid), { proUsed: newUsed });
+                    // อัปเดตโควตาผ่าน Email Document ID
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', sessionProfile.email), { proUsed: newUsed });
                 }
 
                 currentResult = { 
@@ -807,7 +816,8 @@
                     timestamp: Date.now() 
                 };
                 
-                await addDoc(collection(db, 'artifacts', appId, 'users', sessionProfile.uid, 'readings'), currentResult);
+                // บันทึกประวัติโดยใช้ currentUser.uid เพื่อไม่ให้ติดสิทธิ์ความปลอดภัย Firestore
+                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'readings'), currentResult);
 
                 displayResult(currentResult);
                 showToast("การวิเคราะห์เสร็จสมบูรณ์");
@@ -816,7 +826,7 @@
                 if (err.message === "Missing_Gemini_Key") {
                     showToast("ข้อผิดพลาด: โปรดใส่ Gemini API Key ในโค้ดก่อนนำไปรันบน GitHub", true);
                 } else {
-                    showToast("เกิดข้อผิดพลาดในการเชื่อมต่อ AI ประมวลผล", true);
+                    showToast("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI หรือฐานข้อมูล", true);
                 }
                 document.getElementById('loadingState').classList.add('hidden');
                 document.getElementById('welcomeState').classList.remove('hidden');
@@ -863,12 +873,18 @@
         };
 
         const loadHistory = () => {
-            if (!sessionProfile) return;
-            const historyCol = collection(db, 'artifacts', appId, 'users', sessionProfile.uid, 'readings');
+            if (!sessionProfile || !currentUser) return;
+            // ดึงข้อมูลผ่าน currentUser.uid ที่ได้รับอนุญาตตามกฎ
+            const historyCol = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'readings');
             onSnapshot(historyCol, (snapshot) => {
                 const list = document.getElementById('historyList');
                 list.innerHTML = "";
-                const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.timestamp - a.timestamp);
+                // กรองเฉพาะข้อมูลที่ตรงกับอีเมลเซสชันนี้ใน JavaScript Memory
+                const docs = snapshot.docs
+                    .map(d => ({ id: d.id, ...d.data() }))
+                    .filter(d => d.email === sessionProfile.email) 
+                    .sort((a, b) => b.timestamp - a.timestamp);
+                    
                 if (docs.length === 0) return list.innerHTML = `<p class="text-xs text-slate-600 italic">ยังไม่มีประวัติ</p>`;
                 
                 docs.forEach(item => {
