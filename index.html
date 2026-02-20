@@ -63,7 +63,7 @@
                     <label class="block text-sm text-slate-300 mb-1">อีเมล (Gmail เท่านั้น)</label>
                     <input type="email" id="loginEmail" required pattern=".+@gmail\.com" title="ต้องเป็น @gmail.com เท่านั้น" class="w-full bg-slate-800/80 border border-slate-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder-slate-500" placeholder="your@gmail.com">
                 </div>
-                <button type="submit" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-4">
+                <button type="submit" id="authSubmitBtn" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-4">
                     ลงทะเบียน / เข้าใช้งาน
                 </button>
             </form>
@@ -161,6 +161,10 @@
             <h2 class="text-3xl font-bold text-white mb-4">รอการอนุมัติ</h2>
             <p class="text-slate-400 mb-6">เราได้ส่งคำร้องขอสิทธิ์ใช้งานไปที่ <span class="text-white font-bold">chumphola@gmail.com</span> แล้ว โปรดรอให้ผู้ดูแลระบบอนุมัติบัญชีของคุณก่อนจึงจะสามารถใช้งานระบบดูดวงได้</p>
             <p class="text-xs text-slate-500 italic">กรุณารีเฟรชหน้าเว็บหรือรอสักครู่ หากแอดมินอนุมัติแล้วระบบจะเข้าสู่หน้าจอหลักอัตโนมัติ</p>
+            
+            <button type="button" onclick="document.getElementById('logoutBtn').click()" class="mt-6 text-sm text-indigo-400 hover:text-indigo-300 underline">
+                กลับไปหน้าล็อกอิน
+            </button>
         </div>
     </section>
 
@@ -371,11 +375,10 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // นำเข้า getDocs เพิ่มเพื่อใช้ค้นหาอีเมล
+        import { getFirestore, collection, addDoc, query, onSnapshot, doc, setDoc, getDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- ⚠️ ส่วนสำคัญสำหรับ GITHUB PAGES ⚠️ ---
-        // กรุณานำค่า Config จาก Firebase Console ของคุณมาใส่ตรงนี้
-        // หากไม่ใส่ตรงนี้ ระบบฐานข้อมูล (และปุ่มต่างๆ) จะไม่ทำงานเมื่ออยู่บน GitHub
         const githubFirebaseConfig = {
             apiKey: "AIzaSyBBCQhYB_UiFxrSr7mTa0Cju8w2c7bI34E",
             authDomain: "ai-astrology-jest.firebaseapp.com",
@@ -386,8 +389,6 @@
             measurementId: "G-WB327GN2B7"
         };
 
-        // ตรวจสอบสภาพแวดล้อม (ถ้ามี __firebase_config แปลว่ารันใน Sandbox ของ AI)
-        // ถ้าไม่มี แปลว่ารันบน GitHub Pages (ให้ใช้ githubFirebaseConfig)
         let firebaseConfig;
         try {
             if (typeof __firebase_config !== 'undefined') {
@@ -411,6 +412,7 @@
         let isAdminView = false;
         let unsubscribeAdmin = null;
         let currentResult = null;
+        let profileUnsubscribe = null;
 
         // --- UI Utilities ---
         const showToast = (msg, isError = false) => {
@@ -426,15 +428,14 @@
             document.getElementById('quotaBadge').classList.remove('hidden');
             document.getElementById('quotaCount').innerText = sessionProfile.proUsed || 0;
             const btnText = document.getElementById('submitBtnText');
+            const submitBtn = document.getElementById('submitBtn');
             
             if ((sessionProfile.proUsed || 0) < (sessionProfile.proQuota || 3)) {
                 btnText.innerText = "วิเคราะห์ชะตาชีวิต (Deep Research Pro)";
-                document.getElementById('submitBtn').classList.replace('bg-indigo-600', 'bg-amber-600');
-                document.getElementById('submitBtn').classList.replace('hover:bg-indigo-500', 'hover:bg-amber-500');
+                submitBtn.className = "w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 relative overflow-hidden group";
             } else {
                 btnText.innerText = "วิเคราะห์ชะตาชีวิต (Fast Mode)";
-                document.getElementById('submitBtn').classList.replace('bg-amber-600', 'bg-blue-600');
-                document.getElementById('submitBtn').classList.replace('hover:bg-amber-500', 'hover:bg-blue-500');
+                submitBtn.className = "w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 relative overflow-hidden group";
             }
         };
 
@@ -453,25 +454,30 @@
         };
 
         const listenToProfile = (uid) => {
+            if (profileUnsubscribe) profileUnsubscribe(); // เคลียร์ listener ตัวเก่าหากมีการล็อกอินใหม่
+
             const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', uid);
-            onSnapshot(profileRef, (docSnap) => {
+            profileUnsubscribe = onSnapshot(profileRef, (docSnap) => {
                 if (docSnap.exists()) {
                     sessionProfile = docSnap.data();
                     document.getElementById('displayNickname').innerText = sessionProfile.nickname;
                     
+                    document.getElementById('authOverlay').classList.add('hidden');
+                    
                     if (sessionProfile.status === 'pending') {
-                        document.getElementById('authOverlay').classList.add('hidden');
                         document.getElementById('mainAppContent').classList.add('hidden');
                         document.getElementById('pendingApprovalScreen').classList.remove('hidden');
                     } else if (sessionProfile.status === 'approved') {
-                        document.getElementById('authOverlay').classList.add('hidden');
                         document.getElementById('pendingApprovalScreen').classList.add('hidden');
                         document.getElementById('mainAppContent').classList.remove('hidden');
                         updateQuotaUI();
                         loadHistory();
                     }
                 } else {
+                    // ถ้าไม่พบโปรไฟล์ ให้แสดงหน้า Login
                     document.getElementById('authOverlay').classList.remove('hidden');
+                    document.getElementById('mainAppContent').classList.add('hidden');
+                    document.getElementById('pendingApprovalScreen').classList.add('hidden');
                 }
             }, (error) => {
                 console.error("Listen to profile error:", error);
@@ -481,29 +487,48 @@
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
+                // ในตอนแรก (โหลดเพจ) ให้พยายามฟังข้อมูลของ UID ปัจจุบัน
                 listenToProfile(user.uid);
             }
         });
 
         initAuth();
 
-        // --- Login / Register ---
+        // --- Login / Register (อัปเดตระบบตรวจสอบอีเมล) ---
         document.getElementById('authForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!currentUser) return;
-            const nickname = document.getElementById('loginNickname').value;
-            const email = document.getElementById('loginEmail').value;
+            const nickname = document.getElementById('loginNickname').value.trim();
+            const email = document.getElementById('loginEmail').value.trim().toLowerCase();
 
             if (!email.endsWith('@gmail.com')) {
                 showToast("ระบบอนุญาตเฉพาะบัญชี @gmail.com เท่านั้น", true);
                 return;
             }
 
+            const btn = document.getElementById('authSubmitBtn');
+            btn.innerText = "กำลังเข้าสู่ระบบ...";
+            btn.disabled = true;
+
             try {
-                const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', currentUser.uid);
-                const docSnap = await getDoc(profileRef);
+                // 1. ดึงโปรไฟล์ทั้งหมดเพื่อดูว่าอีเมลนี้เคยลงทะเบียนไว้แล้วหรือยัง (รองรับผู้ใช้เดิมหรือการใช้งานข้ามอุปกรณ์)
+                const profilesCol = collection(db, 'artifacts', appId, 'public', 'data', 'profiles');
+                const snapshot = await getDocs(profilesCol);
                 
-                if (!docSnap.exists()) {
+                let existingProfile = null;
+                snapshot.forEach(docSnap => {
+                    if (docSnap.data().email.toLowerCase() === email) {
+                        existingProfile = docSnap.data();
+                    }
+                });
+
+                if (existingProfile) {
+                    // หากพบว่าเคยลงทะเบียนแล้ว ให้ดึงข้อมูลมาใช้ทันที
+                    showToast("ยินดีต้อนรับกลับเข้าสู่ระบบ");
+                    listenToProfile(existingProfile.uid); // สลับไปฟังโปรไฟล์เดิมที่พบ
+                } else {
+                    // หากเป็นผู้ใช้ใหม่เอี่ยม ให้สร้างโปรไฟล์ใหม่
+                    const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', currentUser.uid);
                     await setDoc(profileRef, { 
                         uid: currentUser.uid,
                         nickname, 
@@ -523,26 +548,38 @@
                     
                     emailjs.send("service_34z9xx8", "template_smi5evt", adminParams)
                         .then(() => {
-                            showToast("ส่งคำขอสิทธิ์การใช้งานไปยังแอดมิน (chumphola@gmail.com) สำเร็จ!");
+                            showToast("ส่งคำขอสิทธิ์การใช้งานไปยังแอดมินสำเร็จ!");
                         }).catch(err => {
                             console.error("Email error: ", err);
-                            showToast("ระบบจำลองส่งคำขอสิทธิ์ไปที่ chumphola@gmail.com แล้ว");
+                            showToast("สร้างบัญชีสำเร็จ (แต่ส่งอีเมลแจ้งแอดมินไม่สำเร็จ)");
                         });
+
+                    listenToProfile(currentUser.uid);
                 }
             } catch (err) {
                 console.error(err);
                 showToast("เกิดข้อผิดพลาดในการลงทะเบียน เช็ค Firebase Config หรือ Permission", true);
+            } finally {
+                btn.innerText = "ลงทะเบียน / เข้าใช้งาน";
+                btn.disabled = false;
             }
         });
 
         document.getElementById('logoutBtn').addEventListener('click', () => {
+            // ซ่อนหน้าจอทั้งหมดและเคลียร์ค่าต่างๆ เมื่อกด Logout
             document.getElementById('authOverlay').classList.remove('hidden');
             document.getElementById('mainAppContent').classList.add('hidden');
             document.getElementById('pendingApprovalScreen').classList.add('hidden');
+            document.getElementById('loginNickname').value = '';
+            document.getElementById('loginEmail').value = '';
+            sessionProfile = null;
+            if (profileUnsubscribe) {
+                profileUnsubscribe(); // หยุดดึงข้อมูล
+                profileUnsubscribe = null;
+            }
         });
 
         // --- Admin Controls ---
-        // ระบบปุ่มทำงานได้อิสระ ไม่ผูกติดกับ Form Submit เพราะกำหนด type="button" แล้ว
         document.getElementById('showAdminLoginBtn').addEventListener('click', () => {
             document.getElementById('adminLoginOverlay').classList.remove('hidden');
         });
@@ -708,7 +745,8 @@
 
         document.getElementById('astroForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!currentUser || sessionProfile.status !== 'approved') return;
+            // ต้องมั่นใจว่า sessionProfile ถูกเซ็ตเรียบร้อยแล้ว
+            if (!sessionProfile || sessionProfile.status !== 'approved') return;
 
             const isProMode = (sessionProfile.proUsed || 0) < (sessionProfile.proQuota || 3);
             
@@ -764,7 +802,8 @@
                 
                 if (isProMode) {
                     const newUsed = (sessionProfile.proUsed || 0) + 1;
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', currentUser.uid), { proUsed: newUsed });
+                    // ใช้ sessionProfile.uid แทน currentUser.uid
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', sessionProfile.uid), { proUsed: newUsed });
                 }
 
                 currentResult = { 
@@ -778,7 +817,8 @@
                     timestamp: Date.now() 
                 };
                 
-                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'readings'), currentResult);
+                // ใช้ sessionProfile.uid ในการจัดเก็บประวัติเพื่อให้ผู้ใช้อ่านข้อมูลตัวเองได้เวลาเปลี่ยนเครื่อง
+                await addDoc(collection(db, 'artifacts', appId, 'users', sessionProfile.uid, 'readings'), currentResult);
 
                 displayResult(currentResult);
                 showToast("การวิเคราะห์เสร็จสมบูรณ์");
@@ -830,8 +870,8 @@
         };
 
         const loadHistory = () => {
-            if (!currentUser) return;
-            const historyCol = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'readings');
+            if (!sessionProfile) return;
+            const historyCol = collection(db, 'artifacts', appId, 'users', sessionProfile.uid, 'readings');
             onSnapshot(historyCol, (snapshot) => {
                 const list = document.getElementById('historyList');
                 list.innerHTML = "";
