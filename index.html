@@ -669,6 +669,7 @@
             }
         });
 
+        // ออกจากระบบ
         document.getElementById('logoutBtn').addEventListener('click', () => {
             sessionStorage.removeItem('activeSession');
             window.location.reload(); 
@@ -817,7 +818,7 @@
             reader.onerror = error => reject(error);
         });
 
-        // --- Prediction API (เพิ่มการจัดโครงสร้างสำหรับการวิเคราะห์ลายมือ) ---
+        // --- Prediction API (อัปเกรดระบบ Auto-Fallback ป้องกัน 404 และ 400) ---
         const callGemini = async (prompt, imagesB64 = [], usePro = true) => {
             let apiKey = ""; 
             const githubGeminiApiKey = "AIzaSyCFibyy8DsXh2Pm-o__e1JMgJTQQVNhFfY"; 
@@ -829,6 +830,7 @@
                 }
             }
 
+            // รายชื่อโมเดลที่จะให้ระบบทดลองเรียกใช้ตามลำดับ (หากตัวแรก 404 จะสลับไปตัวถัดไป)
             const publicModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"];
             let currentModelIndex = 0;
             let useSchema = true; 
@@ -837,6 +839,7 @@
                 ? "คุณคือปรมาจารย์โหราศาสตร์ขั้นสูงสุด (Deep Research Mode) จงวิเคราะห์อย่างละเอียดลึกซึ้งที่สุด" 
                 : "คุณคือโหราจารย์ (Fast Mode) จงวิเคราะห์ข้อมูลสรุปแบบรวดเร็วและกระชับ";
 
+            // กำหนดโครงสร้างที่ต้องการใน Prompt ด้วย เพื่อป้องกันกรณีที่ต้องปิด Schema
             const finalPrompt = `${qualityPrompt}\n\n${prompt}\n\n*ข้อสำคัญ: กรุณาตอบกลับเป็นรูปแบบ JSON ที่ถูกต้องเท่านั้น โดยใช้คีย์ต่อไปนี้: summary, personality, improvements, finance, love, health, karma, customAnswer, palmistryDetails (ถ้ามี) และ periods (ซึ่งภายใน periods ประกอบด้วย oneMonth, sixMonths, oneYear)*`;
             
             const parts = [{ text: finalPrompt }];
@@ -895,18 +898,23 @@
                         const errorText = await response.text();
                         console.error(`Gemini API Error (${modelName}):`, response.status, errorText);
                         
-                        if (response.status === 404) {
+                        if (response.status === 404 || response.status === 403) {
                             if (typeof __firebase_config === 'undefined') {
                                 currentModelIndex++;
                                 if (currentModelIndex >= publicModels.length) {
+                                    if (response.status === 403) {
+                                        throw new Error("HTTP 403: API Key ของคุณถูกจำกัดสิทธิ์ โปรดตรวจสอบการตั้งค่า API Restrictions ใน Google Cloud");
+                                    }
                                     throw new Error("HTTP 404: ไม่พบโมเดล AI ที่รองรับใน API Key ของคุณ");
                                 }
+                                console.warn(`Model ${response.status} Error, switching to:`, publicModels[currentModelIndex]);
                                 i--; 
                                 continue;
                             }
                         }
                         
                         if (response.status === 400 && useSchema) {
+                            console.warn("HTTP 400: Schema not supported, retrying without schema...");
                             useSchema = false;
                             i--; 
                             continue;
@@ -922,7 +930,7 @@
                     return JSON.parse(responseText);
                     
                 } catch (err) {
-                    if (err.message === "Missing_Gemini_Key" || err.message.includes("ไม่พบโมเดล")) throw err; 
+                    if (err.message === "Missing_Gemini_Key" || err.message.includes("ไม่พบโมเดล") || err.message.includes("HTTP 403")) throw err; 
                     
                     if (err.name === "SyntaxError" && useSchema) {
                          useSchema = false;
