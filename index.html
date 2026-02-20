@@ -694,18 +694,20 @@
         // --- Prediction API ---
         const callGemini = async (prompt, imagesB64 = [], usePro = true) => {
             let apiKey = ""; 
+            let modelName = "gemini-2.5-flash-preview-09-2025"; // ชื่อรุ่นสำหรับ Sandbox
             
             // ⚠️ ต้องใส่ Gemini API Key ของคุณที่นี่
             const githubGeminiApiKey = "AIzaSyCFibyy8DsXh2Pm-o__e1JMgJTQQVNhFfY"; 
             
             if (typeof __firebase_config === 'undefined') {
                 apiKey = githubGeminiApiKey;
+                modelName = "gemini-2.0-flash"; // เปลี่ยนไปใช้รุ่นสำหรับสาธารณะเมื่ออยู่บน GitHub
                 if (!apiKey || apiKey === "ใส่_GEMINI_API_KEY_ของคุณที่นี่") {
                     throw new Error("Missing_Gemini_Key");
                 }
             }
             
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
             const qualityPrompt = usePro 
                 ? "คุณคือปรมาจารย์โหราศาสตร์ขั้นสูงสุด (Deep Research Mode) จงวิเคราะห์อย่างละเอียดลึกซึ้งที่สุด" 
                 : "คุณคือโหราจารย์ (Fast Mode) จงวิเคราะห์ข้อมูลสรุปแบบรวดเร็วและกระชับ";
@@ -749,7 +751,11 @@
                         })
                     });
 
-                    if (!response.ok) throw new Error("API Request Failed");
+                    if (!response.ok) {
+                        const errorDetails = await response.text();
+                        console.error("Gemini API Error Details:", errorDetails);
+                        throw new Error("API Request Failed");
+                    }
                     const data = await response.json();
                     return JSON.parse(data.candidates[0].content.parts[0].text);
                 } catch (err) {
@@ -848,7 +854,7 @@
                 if (err.message === "Missing_Gemini_Key") {
                     showToast("ข้อผิดพลาด: โปรดใส่ Gemini API Key ในโค้ดก่อนนำไปรันบน GitHub", true);
                 } else {
-                    showToast("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI หรือฐานข้อมูล", true);
+                    showToast("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI หรือฐานข้อมูล โปรดลองใหม่", true);
                 }
                 document.getElementById('loadingState').classList.add('hidden');
                 document.getElementById('welcomeState').classList.remove('hidden');
