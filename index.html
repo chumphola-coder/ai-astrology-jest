@@ -68,6 +68,10 @@
                     <label class="block text-sm text-slate-300 mb-1">ชื่อเล่น <span class="text-xs text-amber-400">(ใช้ยืนยันตัวตนแทนรหัสผ่าน)</span></label>
                     <input type="text" id="loginNickname" required class="w-full bg-slate-800/80 border border-slate-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-white placeholder-slate-500" placeholder="เช่น นัท, พลอย">
                 </div>
+                
+                <!-- จุดแสดง Error หากล็อกอินมีปัญหา -->
+                <div id="authErrorText" class="hidden text-sm text-red-400 bg-red-400/10 p-3 rounded-lg border border-red-500/20 mt-2"></div>
+                
                 <button type="submit" id="authSubmitBtn" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-4">
                     เข้าสู่ระบบ / ลงทะเบียน
                 </button>
@@ -134,7 +138,7 @@
                     <i data-lucide="users" class="text-red-400"></i> จัดการผู้ใช้งาน (Admin Panel)
                 </h2>
                 <button type="button" id="exitAdminBtn" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg text-sm text-white transition-all">
-                    ปิดหน้าต่าง Admin
+                    ออกจากระบบ Admin
                 </button>
             </div>
             <div class="overflow-x-auto">
@@ -163,7 +167,7 @@
                 <i data-lucide="clock" class="text-amber-400" size="48"></i>
             </div>
             <h2 class="text-3xl font-bold text-white mb-4">รอการอนุมัติ</h2>
-            <p class="text-slate-400 mb-6">เราได้ส่งคำร้องขอสิทธิ์ใช้งานไปที่ <span class="text-white font-bold">chumphola@gmail.com</span> แล้ว โปรดรอให้ผู้ดูแลระบบอนุมัติบัญชีของคุณก่อนจึงจะสามารถใช้งานระบบดูดวงได้</p>
+            <p class="text-slate-400 mb-6">ผู้ดูแลระบบกำลังตรวจสอบข้อมูลของคุณ โปรดรอให้อนุมัติบัญชีก่อนจึงจะสามารถใช้งานระบบดูดวงได้</p>
             <p class="text-xs text-slate-500 italic">กรุณารีเฟรชหน้าเว็บหรือรอสักครู่ หากแอดมินอนุมัติแล้วระบบจะเข้าสู่หน้าจอหลักอัตโนมัติ</p>
             
             <button type="button" onclick="document.getElementById('logoutBtn').click()" class="mt-6 text-sm text-indigo-400 hover:text-indigo-300 underline">
@@ -414,8 +418,8 @@
         </section>
     </main>
 
-    <!-- Notification Toast -->
-    <div id="toast" class="fixed bottom-4 right-4 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform transition-transform translate-y-20 opacity-0 z-50">
+    <!-- Notification Toast (ถูกดันขึ้นมาให้ Layer สูงสุดเพื่อไม่ให้โดนบัง) -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform transition-transform translate-y-20 opacity-0 z-[9999]">
         <i data-lucide="info" size="20"></i>
         <span id="toastMsg">ข้อความแจ้งเตือน</span>
     </div>
@@ -469,10 +473,10 @@
 
         const showToast = (msg, isError = false) => {
             const toast = document.getElementById('toast');
-            toast.className = `fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform transition-all z-50 ${isError ? 'bg-red-600' : 'bg-emerald-600'}`;
+            toast.className = `fixed bottom-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform transition-all z-[9999] ${isError ? 'bg-red-600' : 'bg-emerald-600'}`;
             document.getElementById('toastMsg').innerText = msg;
             requestAnimationFrame(() => toast.classList.remove('translate-y-20', 'opacity-0'));
-            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 5000);
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 6000);
         };
 
         const updateQuotaUI = () => {
@@ -580,7 +584,7 @@
                 }
             }, (error) => {
                 console.error("Profile listen error:", error);
-                showToast("พบปัญหาการเชื่อมต่อฐานข้อมูล (สิทธิ์การเข้าถึงถูกปฏิเสธ)", true);
+                showToast("พบปัญหาการเชื่อมต่อฐานข้อมูล: หากรันบน GitHub ตรวจสอบว่าได้ตั้งค่าอนุญาตสิทธิ์ Firebase แล้ว", true);
             });
         };
 
@@ -591,7 +595,6 @@
                 const activeSessionEmail = sessionStorage.getItem('activeSessionEmail');
                 const isAdmin = sessionStorage.getItem('isAdmin');
 
-                // ถ้าระบบจำได้ว่าเป็น Admin ให้โชว์หน้า Admin เสมอ
                 if (isAdmin === 'true') {
                     document.getElementById('authOverlay').classList.add('hidden');
                     document.getElementById('adminLoginOverlay').classList.add('hidden');
@@ -601,11 +604,9 @@
                     document.getElementById('adminDashboard').classList.remove('hidden');
                     if (!unsubscribeAdmin) initAdminDashboard();
                 } 
-                // ถ้าไม่ใช่ Admin และมี Email ให้ไปดึงข้อมูล Profile
                 else if (activeSessionEmail) {
                     listenToProfile(activeSessionEmail);
                 } 
-                // ถ้าไม่ใช่ทั้ง 2 อย่าง ให้โชว์หน้า Login
                 else {
                     document.getElementById('authOverlay').classList.remove('hidden');
                     document.getElementById('mainAppContent').classList.add('hidden');
@@ -619,6 +620,8 @@
 
         document.getElementById('authForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const authErrorDiv = document.getElementById('authErrorText');
+            authErrorDiv.classList.add('hidden');
             
             const nickname = document.getElementById('loginNickname').value.trim();
             const email = document.getElementById('loginEmail').value.trim().toLowerCase();
@@ -636,17 +639,27 @@
             try {
                 // ตรวจสอบและบังคับล็อกอินแบบ Anonymous หากระบบยังไม่ผูก User ไว้
                 if (!currentUser) {
-                    const userCred = await signInAnonymously(auth);
-                    currentUser = userCred.user;
+                    try {
+                        const userCred = await signInAnonymously(auth);
+                        currentUser = userCred.user;
+                    } catch(authErr) {
+                        throw new Error(`เชื่อมต่อฐานข้อมูลล้มเหลว (Firebase Auth): ${authErr.message}`);
+                    }
                 }
 
                 const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', email);
-                const docSnap = await getDoc(profileRef);
+                let docSnap;
+                try {
+                    docSnap = await getDoc(profileRef);
+                } catch (fsErr) {
+                    throw new Error(`อ่านฐานข้อมูลล้มเหลว (Firestore Rules): ${fsErr.message}`);
+                }
 
                 if (docSnap.exists()) {
                     const existingData = docSnap.data();
                     if (existingData.nickname !== nickname) {
-                        showToast("ชื่อเล่นไม่ถูกต้อง (ไม่ตรงกับอีเมลนี้) โปรดลองอีกครั้ง", true);
+                        authErrorDiv.innerText = "ชื่อเล่นไม่ถูกต้อง (ไม่ตรงกับอีเมลนี้) โปรดลองอีกครั้ง";
+                        authErrorDiv.classList.remove('hidden');
                         btn.innerText = originalBtnText;
                         btn.disabled = false;
                         return;
@@ -656,22 +669,27 @@
                     listenToProfile(email); 
                 } else {
                     if (!nickname) {
-                        showToast("คุณเป็นผู้ใช้ใหม่ กรุณาระบุชื่อเล่นเพื่อลงทะเบียนด้วยครับ", true);
+                        authErrorDiv.innerText = "คุณเป็นผู้ใช้ใหม่ กรุณาระบุชื่อเล่นเพื่อลงทะเบียนด้วยครับ";
+                        authErrorDiv.classList.remove('hidden');
                         btn.innerText = originalBtnText;
                         btn.disabled = false;
                         return;
                     }
                     
-                    await setDoc(profileRef, { 
-                        uid: currentUser.uid,
-                        nickname, 
-                        email, 
-                        status: 'pending',
-                        proQuota: 3,
-                        proUsed: 0,
-                        lastUsedDate: '',
-                        createdAt: Date.now()
-                    });
+                    try {
+                        await setDoc(profileRef, { 
+                            uid: currentUser.uid,
+                            nickname, 
+                            email, 
+                            status: 'pending',
+                            proQuota: 3,
+                            proUsed: 0,
+                            lastUsedDate: '',
+                            createdAt: Date.now()
+                        });
+                    } catch (fsWriteErr) {
+                         throw new Error(`เขียนฐานข้อมูลล้มเหลว (Firestore Rules): ${fsWriteErr.message}`);
+                    }
                     
                     showToast("ลงทะเบียนสำเร็จ! กรุณารอแอดมินอนุมัติเพื่อใช้งาน");
                         
@@ -680,7 +698,9 @@
                 }
             } catch (err) {
                 console.error("Registration/Login Error:", err);
-                showToast("เกิดข้อผิดพลาดในการเข้าสู่ระบบ: " + err.message, true);
+                authErrorDiv.innerText = err.message;
+                authErrorDiv.classList.remove('hidden');
+                showToast("เกิดข้อผิดพลาด: โปรดดูรายละเอียดที่กรอบสีแดง", true);
             } finally {
                 btn.innerText = originalBtnText;
                 btn.disabled = false;
@@ -1079,7 +1099,6 @@
         document.getElementById('showAdminLoginBtn').onclick = () => document.getElementById('adminLoginOverlay').classList.remove('hidden');
         document.getElementById('closeAdminLoginBtn').onclick = () => document.getElementById('adminLoginOverlay').classList.add('hidden');
         
-        // อัปเดตการทำงานของปุ่ม Admin Login พร้อมเพิ่มระบบแจ้ง Error ที่ชัดเจน
         document.getElementById('adminLoginForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button[type="submit"]');
