@@ -133,7 +133,7 @@
                     <i data-lucide="users" class="text-red-400"></i> จัดการผู้ใช้งาน (Admin Panel)
                 </h2>
                 <button type="button" id="exitAdminBtn" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg text-sm text-white transition-all">
-                    ปิดหน้าต่าง Admin
+                    ออกจากระบบ Admin
                 </button>
             </div>
             <div class="overflow-x-auto">
@@ -549,45 +549,64 @@
                 const activeSessionEmail = sessionStorage.getItem('activeSessionEmail');
                 
                 if (!activeSessionEmail || activeSessionEmail !== emailKey) {
-                    document.getElementById('authOverlay').classList.remove('hidden');
-                    document.getElementById('mainAppContent').classList.add('hidden');
-                    document.getElementById('pendingApprovalScreen').classList.add('hidden');
                     return;
                 }
 
                 if (docSnap.exists()) {
                     sessionProfile = docSnap.data();
                     document.getElementById('displayNickname').innerText = sessionProfile.nickname;
-                    document.getElementById('authOverlay').classList.add('hidden');
                     
-                    if (sessionProfile.status === 'pending') {
-                        document.getElementById('mainAppContent').classList.add('hidden');
-                        document.getElementById('pendingApprovalScreen').classList.remove('hidden');
-                    } else if (sessionProfile.status === 'approved') {
-                        document.getElementById('pendingApprovalScreen').classList.add('hidden');
-                        document.getElementById('mainAppContent').classList.remove('hidden');
-                        updateQuotaUI();
-                        loadHistory();
-                        populateSavedForm(emailKey);
+                    // ป้องกันไม่ให้ไปล้างหน้าจอ Admin
+                    if (sessionStorage.getItem('isAdmin') !== 'true') {
+                        document.getElementById('authOverlay').classList.add('hidden');
+                        if (sessionProfile.status === 'pending') {
+                            document.getElementById('mainAppContent').classList.add('hidden');
+                            document.getElementById('pendingApprovalScreen').classList.remove('hidden');
+                        } else if (sessionProfile.status === 'approved') {
+                            document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                            document.getElementById('mainAppContent').classList.remove('hidden');
+                            updateQuotaUI();
+                            loadHistory();
+                            populateSavedForm(emailKey);
+                        }
                     }
                 } else {
-                    document.getElementById('authOverlay').classList.remove('hidden');
-                    document.getElementById('mainAppContent').classList.add('hidden');
-                    document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                    if (sessionStorage.getItem('isAdmin') !== 'true') {
+                        document.getElementById('authOverlay').classList.remove('hidden');
+                        document.getElementById('mainAppContent').classList.add('hidden');
+                        document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                    }
                 }
             });
         };
 
+        // ระบบตรวจสอบสถานะและล็อกอินอัตโนมัติ
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
                 const activeSessionEmail = sessionStorage.getItem('activeSessionEmail');
-                if (activeSessionEmail) {
+                const isAdmin = sessionStorage.getItem('isAdmin');
+
+                // ถ้าระบบจำได้ว่าเป็น Admin ให้โชว์หน้า Admin เสมอ
+                if (isAdmin === 'true') {
+                    document.getElementById('authOverlay').classList.add('hidden');
+                    document.getElementById('adminLoginOverlay').classList.add('hidden');
+                    document.getElementById('mainAppContent').classList.add('hidden');
+                    document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                    
+                    document.getElementById('adminDashboard').classList.remove('hidden');
+                    if (!unsubscribeAdmin) initAdminDashboard();
+                } 
+                // ถ้าไม่ใช่ Admin และมี Email ให้ไปดึงข้อมูล Profile
+                else if (activeSessionEmail) {
                     listenToProfile(activeSessionEmail);
-                } else {
+                } 
+                // ถ้าไม่ใช่ทั้ง 2 อย่าง ให้โชว์หน้า Login
+                else {
                     document.getElementById('authOverlay').classList.remove('hidden');
                     document.getElementById('mainAppContent').classList.add('hidden');
                     document.getElementById('pendingApprovalScreen').classList.add('hidden');
+                    document.getElementById('adminDashboard').classList.add('hidden');
                 }
             }
         });
@@ -777,7 +796,7 @@
         const callGemini = async (prompt, imagesB64 = [], usePro = true) => {
             const platformApiKey = ""; 
             
-            // นำ API Key ใหม่มาหั่นแบ่งเป็น 3 ส่วนเพื่อความปลอดภัย
+            // ⚠️ API KEY ใหม่ (ถูกหั่น 3 ส่วนเพื่อหลบบอท) ⚠️
             const gmKey1 = "AIzaSyAtc9RMf";
             const gmKey2 = "JGkt7lWJb5vbC";
             const gmKey3 = "DdFnSJOxQ-DOY";
@@ -1059,12 +1078,16 @@
             const p = document.getElementById('adminPass').value.trim();
 
             if (u === 'admin' && p === 'Hongfa401') {
+                
+                // เก็บสถานะการเป็น Admin ไว้ใน Session เพื่อป้องกันหน้าจอซ้อนทับกัน
+                sessionStorage.setItem('isAdmin', 'true');
+                
                 if (!currentUser) {
                     try {
                         const userCred = await signInAnonymously(auth);
                         currentUser = userCred.user;
                     } catch(err) {
-                        showToast("ไม่สามารถเชื่อมต่อฐานข้อมูลได้: " + err.message, true);
+                        showToast("ไม่สามารถเชื่อมต่อฐานข้อมูลได้ (คุณได้เพิ่ม Domain ใน Firebase หรือยัง?): " + err.message, true);
                         btn.innerText = originalText;
                         btn.disabled = false;
                         return;
@@ -1079,7 +1102,7 @@
                 
                 // แสดงเฉพาะหน้า Admin
                 document.getElementById('adminDashboard').classList.remove('hidden');
-                initAdminDashboard();
+                if (!unsubscribeAdmin) initAdminDashboard();
                 showToast("เข้าสู่ระบบแอดมินสำเร็จ");
                 
                 e.target.reset();
@@ -1092,7 +1115,11 @@
             }
         };
         
-        document.getElementById('exitAdminBtn').onclick = () => { document.getElementById('adminDashboard').classList.add('hidden'); window.location.reload(); };
+        document.getElementById('exitAdminBtn').onclick = () => { 
+            sessionStorage.removeItem('isAdmin');
+            document.getElementById('adminDashboard').classList.add('hidden'); 
+            window.location.reload(); 
+        };
 
     </script>
 </body>
